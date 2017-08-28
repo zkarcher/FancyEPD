@@ -2,52 +2,47 @@
 #include <SPI.h>
 #include "Adafruit_GFX.h"
 #include "FancyEPD.h"
-#include "FancyEPD_models.h"
 
-void FancyEPD::FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uint32_t bs, int32_t d0, int32_t d1)
+FancyEPD::FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uint32_t bs, uint32_t d0, uint32_t d1) : Adafruit_GFX(_modelWidth(model), _modelHeight(model))
 {
 	_model = model;
-	_cs = cs;
-	_dc = dc;
-	_rs = rs;
-	_bs = bs;
+	_cs = cs;	// Chip select
+	_dc = dc;	// Data/command
+	_rs = rs;	// Register select
+	_bs = bs;	// Busy signal
 	_d0 = d0;
 	_d1 = d1;
+	_spiMode = (d0 == 0xffff);
+	_width = _modelWidth(model);
+	_height = _modelHeight(model);
 }
 
 bool FancyEPD::init()
 {
-	switch (model) {
-		case k_epd_model_E2215CS062:
-		{
-			_width = 112;
-			_height = 208;
-		}
-		break;
+	_buffer = (uint8_t *)calloc(getBufferSize(), sizeof(uint8_t));
+	if (!_buffer) return false;
 
-		default:
-		{
-			return false;
-		}
-		break;
+	// SPI
+	if (_spiMode) {
+		SPI.begin();
+
+	} else {
+		// Software SPI
+		pinMode(_d0, OUTPUT);
+		pinMode(_d1, OUTPUT);
 	}
 
-	_buffer = calloc(getBufferSize(), sizeof(uint8_t));
+	pinMode(_cs, OUTPUT);
+  pinMode(_dc, OUTPUT);
+  pinMode(_rs, OUTPUT);
+  pinMode(_bs, INPUT_PULLUP);
 
-	return (bool)_buffer;
-}
+	// Reset the screen
+	digitalWrite(_rs, HIGH);
+	delay( 1 );                       //Delay 1ms	// FIXME ZKA
+	digitalWrite(_cs, HIGH);
 
-void FancyEPD::softwareSpi(uint8_t data) {
-	for (uint8_t i = 0; i < 8; i++) {
-		if (data & (0x80 >> i)) {
-			digitalWrite( _d1, HIGH );
-		} else {
-			digitalWrite( _d1, LOW );
-		}
-
-		digitalWrite( _d0, HIGH );
-		digitalWrite( _d0, LOW );
-	}
+	return true;
 }
 
 int16_t FancyEPD::width()
@@ -73,7 +68,7 @@ uint32_t FancyEPD::getBufferSize()
 
 // Override Adafruit_GFX basic function for setting pixels
 void FancyEPD::drawPixel(int16_t x, int16_t y, uint16_t color) {
-	if ((x < 0) || (y < 0) || (x >= _width || (y >= _height)) return;
+	if ((x < 0) || (y < 0) || (x >= _width) || (y >= _height)) return;
 
 	int16_t temp;
 	switch (getRotation()) {
@@ -113,18 +108,28 @@ void FancyEPD::drawPixel(int16_t x, int16_t y, uint16_t color) {
 	}
 }
 
-void updateScreen(epd_update_t update_type)
+void FancyEPD::setTemperature(uint8_t temperature)
 {
-	if (update_type == k_update_auto) {
-		update_type = k_update_partial;
-	}
-
-
+	// TODO: Temperature is a 12-bit value, so we're
+	//       losing some resolution here.
+	_temperature = temperature;
 }
 
-void updateScreenWithImage(uint8_t * data, epd_image_format_t format, epd_update_t update_type)
+void FancyEPD::updateScreen(epd_update_t update_type)
 {
+	if (update_type == k_update_auto) {
+		update_type = k_update_quick_refresh;
+	}
 
+	_waitForBusySignal();
+	_prepareForScreenUpdate();
+	_sendImageData();
+	_sendUpdateActivation(update_type);
+}
+
+void FancyEPD::updateScreenWithImage(uint8_t * data, epd_image_format_t format, epd_update_t update_type)
+{
+	// FIXME ZKA
 }
 
 void FancyEPD::destroy()
@@ -139,41 +144,141 @@ void FancyEPD::destroy()
 //  PRIVATE
 //
 
+static int16_t _modelWidth(epd_model_t model)
+{
+	switch (model) {
+		case k_epd_model_E2215CS062:     return 112;
+	}
+
+	return 0;	// not found
+}
+
+static int16_t _modelHeight(epd_model_t model)
+{
+	switch (model) {
+		case k_epd_model_E2215CS062:     return 208;
+	}
+
+	return 0;	// not found
+}
+
+void FancyEPD::_waitForBusySignal()
+{
+	// Ensure the busy pin is LOW
+	while (digitalRead( _bs ) == HIGH);
+}
+
+void FancyEPD::_softwareSPI(uint8_t data) {
+	for (uint8_t i = 0; i < 8; i++) {
+		if (data & (0x80 >> i)) {
+			digitalWrite( _d1, HIGH );
+		} else {
+			digitalWrite( _d1, LOW );
+		}
+
+		digitalWrite( _d0, HIGH );
+		digitalWrite( _d0, LOW );
+	}
+}
+
 void FancyEPD::_sendData(uint8_t command, uint8_t * data, uint16_t len) {
   digitalWrite( _cs, LOW );
   digitalWrite( _dc, LOW );
 
-  delay(1);
+  delay(1);	// FIXME ZKA
 
 	if ( _spiMode ) {
 		SPI.transfer(command);
 	} else {
-		softwareSpi(command);
+		_softwareSPI(command);
 	}
+
   delay(1);	// FIXME ZKA
 
 	digitalWrite(_dc, HIGH);
-	delay(1);
+
+	delay(1);	// FIXME ZKA
 
   for (uint16_t i = 0; i < len; i++) {
     if (_spiMode) {
 			SPI.transfer(data[i]);
 		} else {
-    	softwareSpi(data[i]);
+    	_softwareSPI(data[i]);
 		}
   }
+
   delay(1);	// FIXME ZKA
 
   digitalWrite(_cs, HIGH);
 }
 
-void FancyEPD::_set_xy_window(uint8_t xs, uint8_t xe, uint8_t ys, uint8_t ye)
+void FancyEPD::_prepareForScreenUpdate()
+{
+	_sendDriverOutput();
+	_sendGateScanStart();
+	_sendDataEntryMode();
+	_sendGateDrivingVoltage();
+	_sendAnalogMode();
+	_sendTemperatureSensor();
+	_reset_xy();
+}
+
+void FancyEPD::_sendDriverOutput()
+{
+	_sendData(0x01, (uint8_t *){0xCF, 0x00}, 2);
+}
+
+void FancyEPD::_sendGateScanStart()
+{
+	_sendData(0x0F, (uint8_t *){0x00}, 1);
+}
+
+void FancyEPD::_sendDataEntryMode()
+{
+	_sendData(0x11, (uint8_t *){0x03}, 1);
+}
+
+void FancyEPD::_sendGateDrivingVoltage()
+{
+	_sendData(0x03, (uint8_t *){0x10, 0x0A}, 2);
+}
+
+void FancyEPD::_sendAnalogMode()
+{
+	_sendData(0x05, (uint8_t *){0x00}, 1);
+	_sendData(0x75, (uint8_t *){0, 0, 0}, 3);
+}
+
+void FancyEPD::_sendTemperatureSensor()
+{
+	_sendData(0x1A, (uint8_t *){_temperature, 0x00}, 2);
+}
+
+void FancyEPD::_sendImageData()
+{
+	_sendData(0x24, _buffer, getBufferSize());
+}
+
+void FancyEPD::_sendUpdateActivation(epd_update_t update_type)
+{
+	_sendData(0x22, (uint8_t *){0xF7}, 1);	// Display Update type
+
+	_sendData(0x20, NULL, 0);	// Master activation
+}
+
+void FancyEPD::_reset_xy()
+{
+	_send_xy_window(0, (width() >> 3) - 1, 0, height() - 1);
+	_send_xy_counter(0, 0);
+}
+
+void FancyEPD::_send_xy_window(uint8_t xs, uint8_t xe, uint8_t ys, uint8_t ye)
 {
 	_sendData(0x44, (uint8_t *){xs, xe}, 2);
 	_sendData(0x45, (uint8_t *){ys, ye}, 2);
 }
 
-void FancyEPD::_set_xy_counter(uint8_t x, uint8_t y)
+void FancyEPD::_send_xy_counter(uint8_t x, uint8_t y)
 {
 	_sendData(0x4E, (uint8_t *){x}, 1);
 	_sendData(0x4F, (uint8_t *){y}, 1);

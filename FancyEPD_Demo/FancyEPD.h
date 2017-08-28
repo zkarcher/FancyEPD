@@ -34,14 +34,14 @@ typedef enum epd_update_t {
 
 class FancyEPD : public Adafruit_GFX {
 public:
-	FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uint32_t bs, int32_t d0 = 0xff, int32_t d1 = 0xff);
+	FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uint32_t bs, uint32_t d0 = 0xffff, uint32_t d1 = 0xffff);
 	bool init();
 	int16_t width();
 	int16_t height();
 	uint8_t * getBuffer();
 	uint32_t getBufferSize();
 	void drawPixel(int16_t x, int16_t y, uint16_t color);
-
+	void setTemperature(uint8_t temperature);
 	void updateScreen(epd_update_t update_type = k_update_auto);
 	void updateScreenWithImage(uint8_t * data, epd_image_format_t format, epd_update_t update_type = k_update_auto);
 
@@ -50,11 +50,31 @@ public:
 private:
 	epd_model_t _model;
 	uint32_t _d0, _d1, _cs, _dc, _rs, _bs;
-	uint8_t _spiMode, _cursorX, _cursorY;
+	uint8_t _temperature;
+	bool _spiMode;
 	uint8_t * _buffer;
 	int16_t _width, _height;
 
+	static int16_t _modelWidth(epd_model_t model);
+	static int16_t _modelHeight(epd_model_t model);
+
+	void _waitForBusySignal();
+	void _softwareSPI(uint8_t data);
 	void _sendData(uint8_t index, uint8_t * data, uint16_t len);
-	void _set_xy_window(uint8_t xs, uint8_t xe, uint8_t ys, uint8_t ye);
-	void _set_xy_counter(uint8_t x, uint8_t y);
-}
+
+	void _prepareForScreenUpdate();
+	void _sendDriverOutput();
+	void _sendGateScanStart();
+	void _sendDataEntryMode();
+	void _sendGateDrivingVoltage();
+	void _sendAnalogMode();
+	void _sendTemperatureSensor();
+	void _sendImageData();
+	void _sendUpdateActivation(epd_update_t update_type);
+
+	void _reset_xy();
+	void _send_xy_window(uint8_t xs, uint8_t xe, uint8_t ys, uint8_t ye);
+	void _send_xy_counter(uint8_t x, uint8_t y);
+};
+
+#endif

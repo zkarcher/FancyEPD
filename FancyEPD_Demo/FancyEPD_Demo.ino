@@ -16,13 +16,18 @@ void setup() {
 		// Panic and freak out
 		return;
 	}
-
-	epd.updateScreen();
 }
 
 void loop() {
 
-	// Simple test:
+	// Simple test: Draw some graphics
+	int16_t width = epd.width();
+	int16_t height = epd.height();
+	for (uint8_t i = 0; i < 5; i++) {
+		epaper.drawCircle(random(width), random(height), random(80), 0xff);
+	}
+
+	epd.updateScreen();
 
 	/*
 	epd.updateScreenWithImage(zach_photo, k_image_4bit_monochrome);
