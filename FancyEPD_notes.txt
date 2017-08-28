@@ -1,0 +1,9 @@
+* method names for displaying stuff
+
+* actually draw something: try 1-bit color first
+
+* clear screen
+
+* setBorderColor(uint8)
+
+* put readme in FancyEPD.h, mention this was inspired by EPD215
