@@ -46,7 +46,7 @@ void loop() {
 	delay(DELAY_BETWEEN_IMAGES_MS);
 
 	// Doggy
-	epd.setBorderColor(0x40);	// grey
+	epd.setBorderColor(0x40);	// grey-ish
 	epd.updateScreenWithImage(doggy_2bit, k_image_2bit_monochrome, k_update_quick_refresh);
 	delay(DELAY_BETWEEN_IMAGES_MS);
 }
