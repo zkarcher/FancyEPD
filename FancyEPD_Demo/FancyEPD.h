@@ -55,9 +55,6 @@ private:
 	uint8_t * _buffer;
 	int16_t _width, _height;
 
-	static int16_t _modelWidth(epd_model_t model);
-	static int16_t _modelHeight(epd_model_t model);
-
 	void _waitForBusySignal();
 	void _softwareSPI(uint8_t data);
 	void _sendData(uint8_t index, uint8_t * data, uint16_t len);

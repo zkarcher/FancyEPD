@@ -3,6 +3,26 @@
 #include "Adafruit_GFX.h"
 #include "FancyEPD.h"
 
+static int16_t _modelWidth(epd_model_t model)
+{
+	switch (model) {
+		case k_epd_model_E2215CS062:    return 112;
+		default:                        break;
+	}
+
+	return 0;	// not found
+}
+
+static int16_t _modelHeight(epd_model_t model)
+{
+	switch (model) {
+		case k_epd_model_E2215CS062:    return 208;
+		default:                        break;
+	}
+
+	return 0;	// not found
+}
+
 FancyEPD::FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uint32_t bs, uint32_t d0, uint32_t d1) : Adafruit_GFX(_modelWidth(model), _modelHeight(model))
 {
 	_model = model;
@@ -15,6 +35,7 @@ FancyEPD::FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uin
 	_spiMode = (d0 == 0xffff);
 	_width = _modelWidth(model);
 	_height = _modelHeight(model);
+	_temperature = 0x1A;
 }
 
 bool FancyEPD::init()
@@ -144,24 +165,6 @@ void FancyEPD::destroy()
 //  PRIVATE
 //
 
-static int16_t _modelWidth(epd_model_t model)
-{
-	switch (model) {
-		case k_epd_model_E2215CS062:     return 112;
-	}
-
-	return 0;	// not found
-}
-
-static int16_t _modelHeight(epd_model_t model)
-{
-	switch (model) {
-		case k_epd_model_E2215CS062:     return 208;
-	}
-
-	return 0;	// not found
-}
-
 void FancyEPD::_waitForBusySignal()
 {
 	// Ensure the busy pin is LOW
@@ -225,33 +228,39 @@ void FancyEPD::_prepareForScreenUpdate()
 
 void FancyEPD::_sendDriverOutput()
 {
-	_sendData(0x01, (uint8_t *){0xCF, 0x00}, 2);
+	uint8_t data[] = {0xCF, 0x00};
+	_sendData(0x01, data, 2);
 }
 
 void FancyEPD::_sendGateScanStart()
 {
-	_sendData(0x0F, (uint8_t *){0x00}, 1);
+	uint8_t data[] = {0x0};
+	_sendData(0x0F, data, 1);
 }
 
 void FancyEPD::_sendDataEntryMode()
 {
-	_sendData(0x11, (uint8_t *){0x03}, 1);
+	uint8_t data[] = {0x03};
+	_sendData(0x11, data, 1);
 }
 
 void FancyEPD::_sendGateDrivingVoltage()
 {
-	_sendData(0x03, (uint8_t *){0x10, 0x0A}, 2);
+	uint8_t data[] = {0x10, 0x0A};
+	_sendData(0x03, data, 2);
 }
 
 void FancyEPD::_sendAnalogMode()
 {
-	_sendData(0x05, (uint8_t *){0x00}, 1);
-	_sendData(0x75, (uint8_t *){0, 0, 0}, 3);
+	uint8_t data[] = {0, 0, 0};
+	_sendData(0x05, data, 1);
+	_sendData(0x75, data, 3);
 }
 
 void FancyEPD::_sendTemperatureSensor()
 {
-	_sendData(0x1A, (uint8_t *){_temperature, 0x00}, 2);
+	uint8_t data[] = {_temperature, 0x0};
+	_sendData(0x1A, data, 2);
 }
 
 void FancyEPD::_sendImageData()
@@ -261,7 +270,8 @@ void FancyEPD::_sendImageData()
 
 void FancyEPD::_sendUpdateActivation(epd_update_t update_type)
 {
-	_sendData(0x22, (uint8_t *){0xF7}, 1);	// Display Update type
+	uint8_t sequence = 0xF7;
+	_sendData(0x22, &sequence, 1);	// Display Update type
 
 	_sendData(0x20, NULL, 0);	// Master activation
 }
@@ -274,12 +284,14 @@ void FancyEPD::_reset_xy()
 
 void FancyEPD::_send_xy_window(uint8_t xs, uint8_t xe, uint8_t ys, uint8_t ye)
 {
-	_sendData(0x44, (uint8_t *){xs, xe}, 2);
-	_sendData(0x45, (uint8_t *){ys, ye}, 2);
+	uint8_t data_x[] = {xs, xe};
+	_sendData(0x44, data_x, 2);
+	uint8_t data_y[] = {ys, ye};
+	_sendData(0x45, data_y, 2);
 }
 
 void FancyEPD::_send_xy_counter(uint8_t x, uint8_t y)
 {
-	_sendData(0x4E, (uint8_t *){x}, 1);
-	_sendData(0x4F, (uint8_t *){y}, 1);
+	_sendData(0x4E, &x, 1);
+	_sendData(0x4F, &y, 1);
 }

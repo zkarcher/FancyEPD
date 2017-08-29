@@ -3,7 +3,7 @@
 #include "FancyEPD.h"
 //#include "FancyEPD_Demo_images.h"
 
-#define DELAY_BETWEEN_IMAGES_MS       (3000)
+#define DELAY_BETWEEN_IMAGES_MS       (60 * 1000)
 
 // Pins set for project: github.com/pdp7/kicad-teensy-epaper
 //FancyEPD epd(E2215CS062, 17, 16, 14, 15, 13, 11);	// software SPI
@@ -24,10 +24,13 @@ void loop() {
 	int16_t width = epd.width();
 	int16_t height = epd.height();
 	for (uint8_t i = 0; i < 5; i++) {
-		epaper.drawCircle(random(width), random(height), random(80), 0xff);
+		uint8_t radius = random(1, 80);
+		epd.drawCircle(random(width), random(height), radius, 0xff);
 	}
 
 	epd.updateScreen();
+
+	delay(DELAY_BETWEEN_IMAGES_MS);
 
 	/*
 	epd.updateScreenWithImage(zach_photo, k_image_4bit_monochrome);
