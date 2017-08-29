@@ -194,6 +194,34 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 
 	// Multiple draws will be required, for each bit.
 	switch(format) {
+		case k_image_2bit_monochrome:
+		{
+			for (uint8_t b = 0; b < 2; b++) {
+				uint8_t mask0 = 0x1 << (b + 6);
+				uint8_t mask1 = 0x1 << (b + 4);
+				uint8_t mask2 = 0x1 << (b + 2);
+				uint8_t mask3 = 0x1 << (b);
+
+				for (int16_t x = 0; x < _width; x += 4) {
+					for (int16_t y = 0; y < _height; y++) {
+						// 4 pixels per byte, so: offset >> 2
+						uint16_t offset = (y * _width + x) >> 2;
+						uint8_t _byte = data[offset];
+
+						drawPixel(x, y, _byte & mask0);
+						drawPixel(x + 1, y, _byte & mask1);
+						drawPixel(x + 2, y, _byte & mask2);
+						drawPixel(x + 3, y, _byte & mask3);
+					}
+				}
+
+				_waitUntilNotBusy();
+				_sendImageData();
+				_sendUpdateActivation(draw_scheme);
+			}
+		}
+		break;
+
 		case k_image_4bit_monochrome:
 		{
 			for (uint8_t b = 0; b < 4; b++) {
