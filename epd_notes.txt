@@ -1,8 +1,7 @@
-* method names for displaying stuff
-
-* actually draw something: try 1-bit color first
 
 * clear screen
+
+* custom waveforms: working?
 
 * setBorderColor(uint8)
 

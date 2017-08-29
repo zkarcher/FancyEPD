@@ -25,11 +25,22 @@ typedef enum epd_image_format_t {
 
 typedef enum epd_update_t {
 	k_update_none = 0,
+
+	// FancyEPD chooses what it feels is best.
 	k_update_auto,
-	k_update_partial,	// Only applies voltage to changed pixels
-	k_update_no_refresh,
+
+	// Only applies voltage to changed pixels.
+	k_update_partial,
+
+	// Stronger than _partial. Best for general use.
+	k_update_no_blink,
+
+	// Quick inverted->normal transition.
 	k_update_quick_refresh,
-	k_update_full_refresh
+
+	// Manufacturer's default. Exciting blink and strobe effects.
+	k_update_builtin_refresh,
+
 } epd_update_t;
 
 class FancyEPD : public Adafruit_GFX {
@@ -40,10 +51,11 @@ public:
 	int16_t height();
 	uint8_t * getBuffer();
 	uint32_t getBufferSize();
+	void clearBuffer(uint8_t color = 0);
 	void drawPixel(int16_t x, int16_t y, uint16_t color);
-	void setTemperature(uint8_t temperature);
 	void updateScreen(epd_update_t update_type = k_update_auto);
 	void updateScreenWithImage(uint8_t * data, epd_image_format_t format, epd_update_t update_type = k_update_auto);
+	void setTemperature(uint8_t temperature);
 
 	void destroy();
 
@@ -55,17 +67,18 @@ private:
 	uint8_t * _buffer;
 	int16_t _width, _height;
 
-	void _waitForBusySignal();
+	void _waitUntilNotBusy();
 	void _softwareSPI(uint8_t data);
 	void _sendData(uint8_t index, uint8_t * data, uint16_t len);
 
-	void _prepareForScreenUpdate();
+	void _prepareForScreenUpdate(epd_update_t update_type);
 	void _sendDriverOutput();
 	void _sendGateScanStart();
 	void _sendDataEntryMode();
 	void _sendGateDrivingVoltage();
 	void _sendAnalogMode();
 	void _sendTemperatureSensor();
+	void _sendWaveforms(epd_update_t update_type);
 	void _sendImageData();
 	void _sendUpdateActivation(epd_update_t update_type);
 

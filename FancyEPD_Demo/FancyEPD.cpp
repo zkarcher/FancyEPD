@@ -23,6 +23,20 @@ static int16_t _modelHeight(epd_model_t model)
 	return 0;	// not found
 }
 
+// IL3895.pdf : Voltages, used in waveform phases.
+// See the _sendWaveforms() for working examples.
+const uint8_t _SAME = 0b00;	// Same, no change
+const uint8_t _HIGH = 0b01;	// High (white)
+const uint8_t _LOW  = 0b10;	// Low (black)
+
+// Generate a byte describing one step of a waveform.
+// Used for command: Write LUT register (0x32)
+// hh = pixel transition is high-to-high,  hl = high-to-low, etc.
+static uint8_t waveformByte(uint8_t hh, uint8_t hl, uint8_t lh, uint8_t ll)
+{
+	return (hh << 6) | (hl << 4) | (lh << 2) | ll;
+}
+
 FancyEPD::FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uint32_t bs, uint32_t d0, uint32_t d1) : Adafruit_GFX(_modelWidth(model), _modelHeight(model))
 {
 	_model = model;
@@ -87,8 +101,14 @@ uint32_t FancyEPD::getBufferSize()
 	return (_width * _height) / 8;
 }
 
+void FancyEPD::clearBuffer(uint8_t color)
+{
+	memset(_buffer, color, getBufferSize());
+}
+
 // Override Adafruit_GFX basic function for setting pixels
-void FancyEPD::drawPixel(int16_t x, int16_t y, uint16_t color) {
+void FancyEPD::drawPixel(int16_t x, int16_t y, uint16_t color)
+{
 	if ((x < 0) || (y < 0) || (x >= _width) || (y >= _height)) return;
 
 	int16_t temp;
@@ -129,21 +149,14 @@ void FancyEPD::drawPixel(int16_t x, int16_t y, uint16_t color) {
 	}
 }
 
-void FancyEPD::setTemperature(uint8_t temperature)
-{
-	// TODO: Temperature is a 12-bit value, so we're
-	//       losing some resolution here.
-	_temperature = temperature;
-}
-
 void FancyEPD::updateScreen(epd_update_t update_type)
 {
 	if (update_type == k_update_auto) {
 		update_type = k_update_quick_refresh;
 	}
 
-	_waitForBusySignal();
-	_prepareForScreenUpdate();
+	_waitUntilNotBusy();
+	_prepareForScreenUpdate(update_type);
 	_sendImageData();
 	_sendUpdateActivation(update_type);
 }
@@ -151,6 +164,13 @@ void FancyEPD::updateScreen(epd_update_t update_type)
 void FancyEPD::updateScreenWithImage(uint8_t * data, epd_image_format_t format, epd_update_t update_type)
 {
 	// FIXME ZKA
+}
+
+void FancyEPD::setTemperature(uint8_t temperature)
+{
+	// TODO: Temperature is a 12-bit value, so we're
+	//       losing some resolution here.
+	_temperature = temperature;
 }
 
 void FancyEPD::destroy()
@@ -165,7 +185,7 @@ void FancyEPD::destroy()
 //  PRIVATE
 //
 
-void FancyEPD::_waitForBusySignal()
+void FancyEPD::_waitUntilNotBusy()
 {
 	// Ensure the busy pin is LOW
 	while (digitalRead( _bs ) == HIGH);
@@ -215,7 +235,7 @@ void FancyEPD::_sendData(uint8_t command, uint8_t * data, uint16_t len) {
   digitalWrite(_cs, HIGH);
 }
 
-void FancyEPD::_prepareForScreenUpdate()
+void FancyEPD::_prepareForScreenUpdate(epd_update_t update_type)
 {
 	_sendDriverOutput();
 	_sendGateScanStart();
@@ -223,6 +243,7 @@ void FancyEPD::_prepareForScreenUpdate()
 	_sendGateDrivingVoltage();
 	_sendAnalogMode();
 	_sendTemperatureSensor();
+	_sendWaveforms(update_type);
 	_reset_xy();
 }
 
@@ -263,6 +284,50 @@ void FancyEPD::_sendTemperatureSensor()
 	_sendData(0x1A, data, 2);
 }
 
+void FancyEPD::_sendWaveforms(epd_update_t update_type)
+{
+	uint8_t lut_size = 29;
+	uint8_t data[lut_size];
+	memset(data, 0, lut_size);
+
+	switch (update_type) {
+		case k_update_partial:
+		{
+			// Apply voltage only to pixels which change.
+			data[0] = waveformByte(_SAME, _LOW, _HIGH, _SAME);
+			data[16] = 20;	// timing
+		}
+		break;
+
+		case k_update_no_blink:
+		{
+			// Apply voltage to all pixels, whether they change or not.
+			data[0] = waveformByte(_HIGH, _LOW, _HIGH, _LOW);
+			data[16] = 20;	// timing
+		}
+		break;
+
+		case k_update_quick_refresh:
+		{
+			data[0] = waveformByte(_LOW, _HIGH, _LOW, _HIGH);	// inverted image
+			data[1] = waveformByte(_HIGH, _LOW, _HIGH, _LOW);	// normal image
+
+			data[16] = 10;	// Inverted image: short flash
+			data[17] = 20;	// Normal image: apply longer
+		}
+		break;
+
+		case k_update_builtin_refresh:
+		default:
+		{
+			// builtin_refresh: Waveforms are reset in _sendUpdateActivation()
+			return;
+		}
+	}
+
+	_sendData(0x32, data, lut_size);
+}
+
 void FancyEPD::_sendImageData()
 {
 	_sendData(0x24, _buffer, getBufferSize());
@@ -270,7 +335,11 @@ void FancyEPD::_sendImageData()
 
 void FancyEPD::_sendUpdateActivation(epd_update_t update_type)
 {
-	uint8_t sequence = 0xF7;
+	uint8_t sequence = 0xC7;
+	if (update_type == k_update_builtin_refresh) {
+		sequence = 0xF7;
+	}
+
 	_sendData(0x22, &sequence, 1);	// Display Update type
 
 	_sendData(0x20, NULL, 0);	// Master activation
