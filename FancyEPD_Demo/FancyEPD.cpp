@@ -161,9 +161,69 @@ void FancyEPD::updateScreen(epd_update_t update_type)
 	_sendUpdateActivation(update_type);
 }
 
-void FancyEPD::updateScreenWithImage(uint8_t * data, epd_image_format_t format, epd_update_t update_type)
+void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t format, epd_update_t update_type)
 {
-	// FIXME ZKA
+	// 1 bit (black & white)? Fall back on updateScreen()
+	if (format == k_image_1bit) {
+		memcpy(_buffer, data, getBufferSize());
+		updateScreen(update_type);
+		return;
+	}
+
+	if (update_type == k_update_auto) {
+		update_type = k_update_quick_refresh;
+	}
+
+	bool do_blink = (update_type == k_update_quick_refresh) || (update_type == k_update_builtin_refresh);
+
+	if (do_blink) {
+		_waitUntilNotBusy();
+		clearBuffer();
+		_prepareForScreenUpdate(update_type);
+		_sendImageData();
+		_sendUpdateActivation(update_type);
+
+	} else {
+		_waitUntilNotBusy();
+		_prepareForScreenUpdate(k_update_none);	// Don't apply waveforms here
+	}
+
+	epd_update_t draw_scheme = k_update_INTERNAL_monochrome_tree;
+	_waitUntilNotBusy();
+	_sendWaveforms(draw_scheme);
+
+	// Multiple draws will be required, for each bit.
+	switch(format) {
+		case k_image_4bit_monochrome:
+		{
+			for (uint8_t b = 0; b < 4; b++) {
+				uint8_t mask_hi = 0x1 << (b + 4);
+				uint8_t mask_lo = 0x1 << b;
+
+				for (int16_t x = 0; x < _width; x += 2) {
+					for (int16_t y = 0; y < _height; y++) {
+						// 2 pixels per byte, so: offset >> 1
+						uint16_t offset = (y * _width + x) >> 1;
+						uint8_t _byte = data[offset];
+
+						// First pixel: Stored in highest 4 bits
+						drawPixel(x, y, _byte & mask_hi);
+
+						// Second pixel: Stored in lowest 4 bits
+						drawPixel(x + 1, y, _byte & mask_lo);
+					}
+				}
+
+				_waitUntilNotBusy();
+				_sendImageData();
+				_sendUpdateActivation(draw_scheme);
+			}
+		}
+		break;
+
+		default: break;
+	}
+
 }
 
 void FancyEPD::setTemperature(uint8_t temperature)
@@ -314,6 +374,13 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type)
 
 			data[16] = 10;	// Inverted image: short flash
 			data[17] = 20;	// Normal image: apply longer
+		}
+		break;
+
+		case k_update_INTERNAL_monochrome_tree:
+		{
+			data[0] = waveformByte(_HIGH, _LOW, _HIGH, _LOW);
+			data[16] = 3;	// Short pulse
 		}
 		break;
 

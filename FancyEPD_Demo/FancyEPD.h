@@ -41,6 +41,9 @@ typedef enum epd_update_t {
 	// Manufacturer's default. Exciting blink and strobe effects.
 	k_update_builtin_refresh,
 
+	// Internal: Used for drawing monochrome images
+	k_update_INTERNAL_monochrome_tree,
+
 } epd_update_t;
 
 class FancyEPD : public Adafruit_GFX {
@@ -54,7 +57,7 @@ public:
 	void clearBuffer(uint8_t color = 0);
 	void drawPixel(int16_t x, int16_t y, uint16_t color);
 	void updateScreen(epd_update_t update_type = k_update_auto);
-	void updateScreenWithImage(uint8_t * data, epd_image_format_t format, epd_update_t update_type = k_update_auto);
+	void updateScreenWithImage(const uint8_t * data, epd_image_format_t format, epd_update_t update_type = k_update_auto);
 	void setTemperature(uint8_t temperature);
 
 	void destroy();

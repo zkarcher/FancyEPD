@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <Adafruit_GFX.h>
 #include "FancyEPD.h"
-//#include "FancyEPD_Demo_images.h"
+#include "FancyEPD_Demo_images.h"
 
 #define DELAY_BETWEEN_IMAGES_MS       (7 * 1000)
 
@@ -19,6 +19,9 @@ void setup() {
 }
 
 void loop() {
+	epd.updateScreenWithImage(angel_4bit, k_image_4bit_monochrome);
+	delay(DELAY_BETWEEN_IMAGES_MS);
+
 	drawCircles();
 	drawLabel("Update:\n builtin_refresh");
 	epd.updateScreen(k_update_builtin_refresh);
@@ -38,16 +41,6 @@ void loop() {
 	drawLabel("Update:\n    partial");
 	epd.updateScreen(k_update_partial);
 	delay(DELAY_BETWEEN_IMAGES_MS);
-
-	/*
-	epd.updateScreenWithImage(zach_photo, k_image_4bit_monochrome);
-
-	delay(DELAY_BETWEEN_IMAGES_MS);
-	*/
-
-
-
-	//delay(DELAY_BETWEEN_IMAGES_MS);
 }
 
 void drawCircles()
