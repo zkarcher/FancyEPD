@@ -19,12 +19,7 @@ void setup() {
 }
 
 void loop() {
-	epd.updateScreenWithImage(angel_4bit, k_image_4bit_monochrome, k_update_quick_refresh);
-	delay(DELAY_BETWEEN_IMAGES_MS);
-
-	epd.updateScreenWithImage(doggy_2bit, k_image_2bit_monochrome, k_update_quick_refresh);
-	delay(DELAY_BETWEEN_IMAGES_MS);
-
+	epd.setBorderColor(0x00);	// white
 	drawCircles();
 	drawLabel("Update:\n builtin_refresh");
 	epd.updateScreen(k_update_builtin_refresh);
@@ -43,6 +38,16 @@ void loop() {
 	drawLines();
 	drawLabel("Update:\n    partial");
 	epd.updateScreen(k_update_partial);
+	delay(DELAY_BETWEEN_IMAGES_MS);
+
+	// Angel
+	epd.setBorderColor(0xff);	// black
+	epd.updateScreenWithImage(angel_4bit, k_image_4bit_monochrome, k_update_quick_refresh);
+	delay(DELAY_BETWEEN_IMAGES_MS);
+
+	// Doggy
+	epd.setBorderColor(0x40);	// grey
+	epd.updateScreenWithImage(doggy_2bit, k_image_2bit_monochrome, k_update_quick_refresh);
 	delay(DELAY_BETWEEN_IMAGES_MS);
 }
 

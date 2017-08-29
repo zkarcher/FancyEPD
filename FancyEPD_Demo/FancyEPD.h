@@ -56,6 +56,7 @@ public:
 	uint32_t getBufferSize();
 	void clearBuffer(uint8_t color = 0);
 	void drawPixel(int16_t x, int16_t y, uint16_t color);
+	void setBorderColor(uint8_t color);
 	void updateScreen(epd_update_t update_type = k_update_auto);
 	void updateScreenWithImage(const uint8_t * data, epd_image_format_t format, epd_update_t update_type = k_update_auto);
 	void setTemperature(uint8_t temperature);
@@ -66,6 +67,7 @@ private:
 	epd_model_t _model;
 	uint32_t _d0, _d1, _cs, _dc, _rs, _bs;
 	uint8_t _temperature;
+	uint8_t _borderColor, _borderBit;
 	bool _spiMode;
 	uint8_t * _buffer;
 	int16_t _width, _height;
@@ -82,6 +84,7 @@ private:
 	void _sendAnalogMode();
 	void _sendTemperatureSensor();
 	void _sendWaveforms(epd_update_t update_type);
+	void _sendBorderBit(epd_update_t update_type, uint8_t newBit);
 	void _sendImageData();
 	void _sendUpdateActivation(epd_update_t update_type);
 

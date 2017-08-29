@@ -50,6 +50,8 @@ FancyEPD::FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uin
 	_width = _modelWidth(model);
 	_height = _modelHeight(model);
 	_temperature = 0x1A;
+	_borderColor = 0x0;
+	_borderBit = 0x0;
 }
 
 bool FancyEPD::init()
@@ -149,6 +151,11 @@ void FancyEPD::drawPixel(int16_t x, int16_t y, uint16_t color)
 	}
 }
 
+void FancyEPD::setBorderColor(uint8_t color)
+{
+	_borderColor = color;
+}
+
 void FancyEPD::updateScreen(epd_update_t update_type)
 {
 	if (update_type == k_update_auto) {
@@ -180,6 +187,7 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 		_waitUntilNotBusy();
 		clearBuffer();
 		_prepareForScreenUpdate(update_type);
+		_sendBorderBit(update_type, 0);	// white border
 		_sendImageData();
 		_sendUpdateActivation(update_type);
 
@@ -216,6 +224,7 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 				}
 
 				_waitUntilNotBusy();
+				_sendBorderBit(draw_scheme, (_borderColor & mask0) ? 1 : 0);
 				_sendImageData();
 				_sendUpdateActivation(draw_scheme);
 			}
@@ -243,6 +252,7 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 				}
 
 				_waitUntilNotBusy();
+				_sendBorderBit(draw_scheme, (_borderColor & mask_hi) ? 1 : 0);
 				_sendImageData();
 				_sendUpdateActivation(draw_scheme);
 			}
@@ -332,6 +342,7 @@ void FancyEPD::_prepareForScreenUpdate(epd_update_t update_type)
 	_sendAnalogMode();
 	_sendTemperatureSensor();
 	_sendWaveforms(update_type);
+	_sendBorderBit(update_type, (_borderColor & 0x80) ? 1 : 0);
 	_reset_xy();
 }
 
@@ -421,6 +432,22 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type)
 	}
 
 	_sendData(0x32, data, lut_size);
+}
+
+void FancyEPD::_sendBorderBit(epd_update_t update_type, uint8_t newBit)
+{
+	uint8_t borderByte = 0x80 | (_borderBit << 1) | newBit;
+
+	// _partial update: Looks bad if the border bit doesn't
+	// change. So apply voltage in that case.
+	if (update_type == k_update_partial) {
+		// Force a change. Make A1 the opposite of A0.
+		borderByte = (borderByte & (~0b10)) | (((~newBit) << 1) & 0b10);
+	}
+
+	_sendData(0x3C, &borderByte, 1);
+
+	_borderBit = newBit;
 }
 
 void FancyEPD::_sendImageData()

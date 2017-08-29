@@ -1,8 +1,0 @@
-
-* clear screen
-
-* custom waveforms: working?
-
-* setBorderColor(uint8)
-
-* put readme in FancyEPD.h, mention this was inspired by EPD215
