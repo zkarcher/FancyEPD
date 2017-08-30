@@ -1,0 +1,31 @@
+Support 8-bit monochrome
+
+
+
+init EPD with optional buffer
+
+
+
+
+They are all supply voltages. Vcc = Collector supply voltage, Vee = Emitter supply, Vbb= Base supply voltage, Vdd = Drain supply, Vss = source supply.
+[snip]
+Since there is no notion to identify ground (0) this method was simply adopted. The voltages can be negative or positive depending on the the device and the circuit configuration. This method is a standard specified by Institute Of Electrical And Electronics Engineer (IEEE).
+
+
+
+protected, not private
+
+
+
+What is the maximum SPI speed your device can use? This is controlled by the first parameter in SPISettings. If you are using a chip rated at 15 MHz, use 15000000. Arduino will automatically use the best speed that is equal to or less than the number you use with SPISettings.
+   ^^ faster?
+	 https://www.pjrc.com/teensy/td_libs_SPI.html
+
+ (1 second) / (250 nanoseconds) =
+ 4 000 000
+
+Try 2x faster?? That's the WHOLE clock cycle time
+
+
+
+Do you think a species with 8 fingers would develop digital technology sooner, or later, than us 10-fingered monkeys?

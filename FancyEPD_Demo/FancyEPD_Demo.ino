@@ -19,9 +19,9 @@ void setup() {
 }
 
 void loop() {
-	epd.setBorderColor(0x00);	// white
 	drawCircles();
 	drawLabel("Update:\n builtin_refresh");
+	epd.setBorderColor(0x00);	// white
 	epd.updateScreen(k_update_builtin_refresh);
 	delay(DELAY_BETWEEN_IMAGES_MS);
 
@@ -43,6 +43,11 @@ void loop() {
 	// Angel
 	epd.setBorderColor(0xff);	// black
 	epd.updateScreenWithImage(angel_4bit, k_image_4bit_monochrome, k_update_quick_refresh);
+	delay(DELAY_BETWEEN_IMAGES_MS);
+
+	// Angel
+	epd.setBorderColor(0x00);	// white
+	epd.updateScreenWithImage(angel2_8bit, k_image_8bit_monochrome, k_update_quick_refresh);
 	delay(DELAY_BETWEEN_IMAGES_MS);
 
 	// Doggy

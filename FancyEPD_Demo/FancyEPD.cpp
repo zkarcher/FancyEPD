@@ -204,17 +204,16 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 	switch(format) {
 		case k_image_2bit_monochrome:
 		{
-			for (uint8_t b = 0; b < 2; b++) {
+			for (uint8_t b = 0; b < 2; b++) {	// least-significant bits first
+				uint16_t offset = 0;
 				uint8_t mask0 = 0x1 << (b + 6);
 				uint8_t mask1 = 0x1 << (b + 4);
 				uint8_t mask2 = 0x1 << (b + 2);
 				uint8_t mask3 = 0x1 << (b);
 
-				for (int16_t x = 0; x < _width; x += 4) {
-					for (int16_t y = 0; y < _height; y++) {
-						// 4 pixels per byte, so: offset >> 2
-						uint16_t offset = (y * _width + x) >> 2;
-						uint8_t _byte = data[offset];
+				for (int16_t y = 0; y < _height; y++) {
+					for (int16_t x = 0; x < _width; x += 4) {
+						uint8_t _byte = data[offset++];
 
 						drawPixel(x, y, _byte & mask0);
 						drawPixel(x + 1, y, _byte & mask1);
@@ -233,15 +232,14 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 
 		case k_image_4bit_monochrome:
 		{
-			for (uint8_t b = 0; b < 4; b++) {
+			for (uint8_t b = 0; b < 4; b++) {	// least-significant bits first
+				uint16_t offset = 0;
 				uint8_t mask_hi = 0x1 << (b + 4);
 				uint8_t mask_lo = 0x1 << b;
 
-				for (int16_t x = 0; x < _width; x += 2) {
-					for (int16_t y = 0; y < _height; y++) {
-						// 2 pixels per byte, so: offset >> 1
-						uint16_t offset = (y * _width + x) >> 1;
-						uint8_t _byte = data[offset];
+				for (int16_t y = 0; y < _height; y++) {
+					for (int16_t x = 0; x < _width; x += 2) {
+						uint8_t _byte = data[offset++];
 
 						// First pixel: Stored in highest 4 bits
 						drawPixel(x, y, _byte & mask_hi);
@@ -253,6 +251,30 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 
 				_waitUntilNotBusy();
 				_sendBorderBit(draw_scheme, (_borderColor & mask_hi) ? 1 : 0);
+				_sendImageData();
+				_sendUpdateActivation(draw_scheme);
+			}
+		}
+		break;
+
+		case k_image_8bit_monochrome:
+		{
+			// For the sake of brevity: We're only displaying
+			// the most-significant 4 bits of each pixel.
+			for (uint8_t b = 0; b < 4; b++) {	// least-significant bits first
+				uint16_t offset = 0;
+				uint8_t mask = 0x10 << b;
+
+				for (int16_t y = 0; y < _height; y++) {
+					for (int16_t x = 0; x < _width; x++) {
+						uint8_t _byte = data[offset++];
+
+						drawPixel(x, y, _byte & mask);
+					}
+				}
+
+				_waitUntilNotBusy();
+				_sendBorderBit(draw_scheme, (_borderColor & mask) ? 1 : 0);
 				_sendImageData();
 				_sendUpdateActivation(draw_scheme);
 			}
