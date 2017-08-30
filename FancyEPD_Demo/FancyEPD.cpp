@@ -54,10 +54,24 @@ FancyEPD::FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uin
 	_borderBit = 0x0;
 }
 
-bool FancyEPD::init()
+bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
 {
-	_buffer = (uint8_t *)calloc(getBufferSize(), sizeof(uint8_t));
-	if (!_buffer) return false;
+	// Release old buffer, if it exists
+	freeBuffer();
+
+	if (optionalBuffer) {
+		_buffer = optionalBuffer;
+		_didMallocBuffer = false;
+
+	} else {
+		// malloc our own buffer.
+		_buffer = (uint8_t *)calloc(getBufferSize(), sizeof(uint8_t));
+		if (!_buffer) return false;
+
+		_didMallocBuffer = true;
+	}
+
+	_bufferFormat = bufferFormat;
 
 	// SPI
 	if (_spiMode) {
@@ -293,12 +307,18 @@ void FancyEPD::setTemperature(uint8_t temperature)
 	_temperature = temperature;
 }
 
-void FancyEPD::destroy()
+void FancyEPD::freeBuffer()
 {
-	if (_buffer) {
+	if (_didMallocBuffer && _buffer) {
 		free(_buffer);
 		_buffer = NULL;
 	}
+}
+
+// Destructor
+FancyEPD::~FancyEPD()
+{
+	freeBuffer();
 }
 
 //

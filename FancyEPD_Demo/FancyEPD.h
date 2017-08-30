@@ -49,7 +49,7 @@ typedef enum epd_update_t {
 class FancyEPD : public Adafruit_GFX {
 public:
 	FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uint32_t bs, uint32_t d0 = 0xffff, uint32_t d1 = 0xffff);
-	bool init();
+	bool init(uint8_t * optionalBuffer = NULL, epd_image_format_t bufferFormat = k_image_1bit);
 	int16_t width();
 	int16_t height();
 	uint8_t * getBuffer();
@@ -60,16 +60,18 @@ public:
 	void updateScreen(epd_update_t update_type = k_update_auto);
 	void updateScreenWithImage(const uint8_t * data, epd_image_format_t format, epd_update_t update_type = k_update_auto);
 	void setTemperature(uint8_t temperature);
+	void freeBuffer();
+	~FancyEPD();
 
-	void destroy();
-
-private:
+protected:
 	epd_model_t _model;
 	uint32_t _d0, _d1, _cs, _dc, _rs, _bs;
 	uint8_t _temperature;
 	uint8_t _borderColor, _borderBit;
 	bool _spiMode;
 	uint8_t * _buffer;
+	bool _didMallocBuffer;
+	epd_image_format_t _bufferFormat;
 	int16_t _width, _height;
 
 	void _waitUntilNotBusy();

@@ -1,11 +1,3 @@
-Support 8-bit monochrome
-
-
-
-init EPD with optional buffer
-
-
-
 
 They are all supply voltages. Vcc = Collector supply voltage, Vee = Emitter supply, Vbb= Base supply voltage, Vdd = Drain supply, Vss = source supply.
 [snip]
