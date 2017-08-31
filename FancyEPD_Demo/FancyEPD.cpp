@@ -25,7 +25,7 @@ static int16_t _modelHeight(epd_model_t model)
 
 // IL3895.pdf : Voltages, used in waveform phases.
 // See the _sendWaveforms() for working examples.
-const uint8_t _SAME = 0b00;	// Same, no change
+const uint8_t _SOURCE = 0b00;	// Same, no change (actually the pixel drifts towards grey after enough updates)
 const uint8_t _HIGH = 0b01;	// High (white)
 const uint8_t _LOW  = 0b10;	// Low (black)
 
@@ -435,7 +435,7 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type)
 		case k_update_partial:
 		{
 			// Apply voltage only to pixels which change.
-			data[0] = waveformByte(_SAME, _LOW, _HIGH, _SAME);
+			data[0] = waveformByte(_SOURCE, _LOW, _HIGH, _SOURCE);
 			data[16] = 20;	// timing
 		}
 		break;
