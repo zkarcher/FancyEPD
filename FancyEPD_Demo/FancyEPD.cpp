@@ -46,7 +46,7 @@ FancyEPD::FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uin
 	_bs = bs;	// Busy signal
 	_d0 = d0;
 	_d1 = d1;
-	_spiMode = (d0 == 0xffff);
+	_hardwareSPI = (d0 == 0xffff);
 	_width = _modelWidth(model);
 	_height = _modelHeight(model);
 	_temperature = 0x1A;
@@ -74,7 +74,7 @@ bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
 	_bufferFormat = bufferFormat;
 
 	// SPI
-	if (_spiMode) {
+	if (_hardwareSPI) {
 		SPI.begin();
 
 	} else {
@@ -84,13 +84,13 @@ bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
 	}
 
 	pinMode(_cs, OUTPUT);
-  pinMode(_dc, OUTPUT);
-  pinMode(_rs, OUTPUT);
-  pinMode(_bs, INPUT_PULLUP);
+	pinMode(_dc, OUTPUT);
+	pinMode(_rs, OUTPUT);
+	pinMode(_bs, INPUT_PULLUP);
 
 	// Reset the screen
 	digitalWrite(_rs, HIGH);
-	delay( 1 );                       //Delay 1ms	// FIXME ZKA
+	//delay(1);         // ZKA: required?
 	digitalWrite(_cs, HIGH);
 
 	return true;
@@ -328,51 +328,60 @@ FancyEPD::~FancyEPD()
 void FancyEPD::_waitUntilNotBusy()
 {
 	// Ensure the busy pin is LOW
-	while (digitalRead( _bs ) == HIGH);
+	while (digitalRead(_bs) == HIGH);
 }
 
 void FancyEPD::_softwareSPI(uint8_t data) {
-	for (uint8_t i = 0; i < 8; i++) {
-		if (data & (0x80 >> i)) {
-			digitalWrite( _d1, HIGH );
-		} else {
-			digitalWrite( _d1, LOW );
-		}
+	uint8_t mask = 0x80;
 
-		digitalWrite( _d0, HIGH );
-		digitalWrite( _d0, LOW );
+	while (mask) {
+		digitalWrite(_d1, (data & mask) ? HIGH : LOW);
+
+		digitalWrite(_d0, HIGH);
+		digitalWrite(_d0, LOW);
+
+		mask >>= 1;
 	}
 }
 
 void FancyEPD::_sendData(uint8_t command, uint8_t * data, uint16_t len) {
-  digitalWrite( _cs, LOW );
-  digitalWrite( _dc, LOW );
+	// 1s / 250ns clock cycle time == 4,000,000 Hz
+	if (_hardwareSPI) {
+		SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));
+	}
 
-  delay(1);	// FIXME ZKA
+	digitalWrite(_cs, LOW);
+	digitalWrite(_dc, LOW);
 
-	if ( _spiMode ) {
+	//delay(1);	// ZKA: required?
+
+	if (_hardwareSPI) {
 		SPI.transfer(command);
 	} else {
 		_softwareSPI(command);
 	}
 
-  delay(1);	// FIXME ZKA
+	//delay(1);	// ZKA: required?
 
 	digitalWrite(_dc, HIGH);
 
-	delay(1);	// FIXME ZKA
+	//delay(1);	// ZKA: required?
 
-  for (uint16_t i = 0; i < len; i++) {
-    if (_spiMode) {
+	for (uint16_t i = 0; i < len; i++) {
+		if (_hardwareSPI) {
 			SPI.transfer(data[i]);
 		} else {
-    	_softwareSPI(data[i]);
+			_softwareSPI(data[i]);
 		}
-  }
+	}
 
-  delay(1);	// FIXME ZKA
+	//delay(1);	// ZKA: required?
 
-  digitalWrite(_cs, HIGH);
+	digitalWrite(_cs, HIGH);
+
+	if (_hardwareSPI) {
+		SPI.endTransaction();
+	}
 }
 
 void FancyEPD::_prepareForScreenUpdate(epd_update_t update_type)
@@ -453,7 +462,7 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type)
 			data[0] = waveformByte(_LOW, _HIGH, _LOW, _HIGH);	// inverted image
 			data[1] = waveformByte(_HIGH, _LOW, _HIGH, _LOW);	// normal image
 
-			data[16] = 10;	// Inverted image: short flash
+			data[16] = 12;	// Inverted image: short flash
 			data[17] = 20;	// Normal image: apply longer
 		}
 		break;

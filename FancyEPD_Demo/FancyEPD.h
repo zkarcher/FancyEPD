@@ -68,7 +68,7 @@ protected:
 	uint32_t _d0, _d1, _cs, _dc, _rs, _bs;
 	uint8_t _temperature;
 	uint8_t _borderColor, _borderBit;
-	bool _spiMode;
+	bool _hardwareSPI;
 	uint8_t * _buffer;
 	bool _didMallocBuffer;
 	epd_image_format_t _bufferFormat;

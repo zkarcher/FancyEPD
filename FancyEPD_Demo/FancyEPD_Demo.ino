@@ -6,7 +6,9 @@
 #define DELAY_BETWEEN_IMAGES_MS       (6 * 1000)
 
 // Pins set for project: github.com/pdp7/kicad-teensy-epaper
-//FancyEPD epd(E2215CS062, 17, 16, 14, 15, 13, 11);	// software SPI
+
+//FancyEPD epd(k_epd_model_E2215CS062, 17, 16, 14, 15, 13, 11);	// software SPI
+
 FancyEPD epd(k_epd_model_E2215CS062, 17, 16, 14, 15);	// hardware SPI
 
 void setup() {
