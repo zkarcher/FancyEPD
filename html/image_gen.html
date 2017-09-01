@@ -1,10 +1,11 @@
 <img id="image"></img>
 
-<script src="jquery-3.2.1.js"></script>
+<script src="js/vendor/jquery-3.2.1.js"></script>
+<script src="js/FancyEncoder.js"></script>
 
 <script>
 var img = document.getElementById('image');
-$(img).attr("src", "doggy.png");
+$(img).attr("src", "img/angel2.png");
 $(img).on("load", function(){
 	console.log("loaded");
 
@@ -12,33 +13,7 @@ $(img).on("load", function(){
 	canvas.width = img.width;
 	canvas.height = img.height;
 	canvas.getContext('2d').drawImage(img, 0, 0, img.width, img.height);
-	console.log("wtf?", canvas);
 
-	var data = canvas.getContext('2d').getImageData(0, 0, img.width, img.height).data;
-
-	var ar = [];
-	/*
-	// 4-bit color, 2 pixels per byte
-	for (var i = 0; i < data.length; i += 8) {
-		var byte = (data[i] & 0xf0) | ((data[i + 4] & 0xf0) >> 4);
-		byte = 0xff - byte;
-		ar.push(byte);
-	}
-	*/
-
-	// 2-bit color, 4 pixels per byte
-	for (var i = 0; i < data.length; i += 16) {
-		var byte = (data[i] & 0xc0) | ((data[i + 4] & 0xc0) >> 2) | ((data[i + 8] & 0xc0) >> 4) | ((data[i + 12] & 0xc0) >> 6);
-		byte = 0xff - byte;
-		ar.push(byte);
-	}
-
-	var str = "";
-	while (ar.length) {
-		var chunk = ar.splice(0, 16);
-		str += chunk.join(",") + ",\n";
-	}
-
-	console.log(str);
+	var enc = new FancyEncoder(canvas, "1bpp_monochrome_rle_vql");
 });
 </script>
