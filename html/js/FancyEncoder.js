@@ -2,7 +2,7 @@ function FancyEncoder(canvas, format)
 {
 	var self = this;
 
-	var data = canvas.getContext('2d').getImageData(0, 0, img.width, img.height).data;
+	var data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
 
 	var ar = [];
 
@@ -58,40 +58,35 @@ function FancyEncoder(canvas, format)
 
 		case "1bpp_monochrome_rle_vql":
 		{
-			var offset = 0;
-			var mask = 0x80;
+			var binImg = BinaryImage(canvas, 0x10);
+			var rle = RLE(binImg);
+			var vlq = VLQ(rle, 2);	// 2: black, and white.
 
-			// RLE encoding. Count consecutive "runs" of
-			// same-colored pixels. This is just a tiny state machine.
-			var rle = [];
-			var runIsWhite = false;
-			var run = 0;
+			ar = vlq;
 
-			for (var y = 0; y < img.height; y++) {
-				for (var x = 0; x < img.width; x++) {
-					// [offset * 4]: Read the red component of each pixel.
-					// Skip green, blue, alpha.
-					var isWhite = (data[offset * 4] & mask);
+			// Debug: Show bin img
+			var cvs = document.createElement('canvas');
+			cvs.width = canvas.width;
+			cvs.height = canvas.height;
+			
+			var ctx = cvs.getContext('2d');
+			var data = ctx.getImageData(0, 0, cvs.width, cvs.height).data;
 
-					if (isWhite == runIsWhite) {	// No change.
-						run++;
+			var d = 0;
+			for (var y = 0; y < cvs.height; y++) {
+				for (var x = 0; x < cvs.width; x++) {
+					data[d] = data[d + 1] = data[d + 2] = (binImg[d / 4] ? 0xff : 0x0);	// red, green, blue
+					data[d + 3] = 0xff;	// alpha
 
-					} else {	// Pixel changed state. Store the run.
-						rle.push(run);
-						runIsWhite = isWhite;
-						run = 1;
-					}
-
-					// Advance to next pixel
-					offset++;
+					d += 4;
 				}
 			}
 
-			// Store the final run (if any).
-			if (run) rle.push(run);
+			var imgData = new ImageData(data, cvs.width, cvs.height);
 
-			ar = rle;	// debuggin'
+			ctx.putImageData(imgData, 0, 0, 0, 0, cvs.width, cvs.height);
 
+			document.body.appendChild(cvs);
 		}
 		break;
 
