@@ -5,6 +5,7 @@
 <script src="js/Bitstream.js"></script>
 <script src="js/RLE.js"></script>
 <script src="js/VLQ.js"></script>
+<script src="js/TerrainEncoding.js"></script>
 <script src="js/FancyEncoder.js"></script>
 
 <script>
@@ -18,6 +19,6 @@ $(img).on("load", function(){
 	canvas.height = img.height;
 	canvas.getContext('2d').drawImage(img, 0, 0, img.width, img.height);
 
-	var enc = new FancyEncoder(canvas, "1bpp_monochrome_rle_vql");
+	var enc = new FancyEncoder(canvas, "1bpp_monochrome_terrain_vql");
 });
 </script>

@@ -63,12 +63,19 @@ function FancyEncoder(canvas, format)
 			var vlq = VLQ(rle, 2);	// 2: black, and white.
 
 			ar = vlq;
+		}
+		break;
+
+		case "1bpp_monochrome_terrain_vql":
+		{
+			var binImg = BinaryImage(canvas, 0x10);
+			var ter = new TerrainEncoding(binImg, canvas.width);
 
 			// Debug: Show bin img
 			var cvs = document.createElement('canvas');
 			cvs.width = canvas.width;
 			cvs.height = canvas.height;
-			
+
 			var ctx = cvs.getContext('2d');
 			var data = ctx.getImageData(0, 0, cvs.width, cvs.height).data;
 
