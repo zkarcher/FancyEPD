@@ -5,6 +5,12 @@
 
 #define DELAY_BETWEEN_IMAGES_MS       (6 * 1000)
 
+/*
+//Add ESP12 Pinout
+//CS=15,DC=2,RS=0,BS=4, D0=14, D1=13
+//FancyEPD epd(k_epd_model_E2215CS062, 15, 2, 5, 4, 14, 13 ); //ESP-12 PINOUT
+*/
+
 // Pins set for project: github.com/pdp7/kicad-teensy-epaper
 
 //FancyEPD epd(k_epd_model_E2215CS062, 17, 16, 14, 15, 13, 11);	// software SPI
