@@ -4,14 +4,14 @@
 #include "FancyEPD_Demo_images.h"
 
 #define DELAY_BETWEEN_IMAGES_MS       (6 * 1000)
-
 #define DO_ROTATION                   (true)
 
-// Pins set for project: github.com/pdp7/kicad-teensy-epaper
-
+// Pins for project: github.com/pdp7/kicad-teensy-epaper
 //FancyEPD epd(k_epd_model_E2215CS062, 17, 16, 14, 15, 13, 11);	// software SPI
-
 FancyEPD epd(k_epd_model_E2215CS062, 17, 16, 14, 15);	// hardware SPI
+
+//ESP12 Pinout
+//FancyEPD epd(k_epd_model_E2215CS062, 15, 2, 5, 4, 14, 13);
 
 void setup() {
 	bool success = epd.init();
