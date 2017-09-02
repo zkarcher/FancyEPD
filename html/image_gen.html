@@ -20,6 +20,6 @@ $(img).on("load", function(){
 	canvas.height = img.height;
 	canvas.getContext('2d').drawImage(img, 0, 0, img.width, img.height);
 
-	var enc = new FancyEncoder(canvas, "1bpp_monochrome_terrain_vlq");
+	var enc = new FancyEncoder(canvas, "1bpp_monochrome_rle_xor_vlq");
 });
 </script>

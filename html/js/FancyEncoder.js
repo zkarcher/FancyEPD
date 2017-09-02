@@ -66,6 +66,38 @@ function FancyEncoder(canvas, format)
 		}
 		break;
 
+		case "1bpp_monochrome_rle_xor_vlq":
+		{
+			var binImg = BinaryImage(canvas, 0x80);
+
+			// XOR version of the image. Pixels are XOR'd
+			// compared to the pixel directly above them.
+			var w = canvas.width;
+			var h = canvas.height;
+			var xorImg = [];
+
+			// First row is identical
+			for (var i = 0; i < w; i++) {
+				xorImg.push(binImg[i]);
+			}
+
+			var offset = w;
+			for (var j = 1; j < h; j++) {
+				for (var i = 0; i < w; i++) {
+					var isSame = (binImg[offset] == binImg[offset - w]);
+					xorImg.push(isSame ? 0 : 1);
+					offset++;
+				}
+			}
+
+			var rle = RLE(xorImg);
+			console.log(rle);
+			var vlq = VLQ(rle, 2);	// 2: same, and xor.
+
+			ar = vlq;
+		}
+		break;
+
 		case "1bpp_monochrome_terrain_vlq":
 		{
 			var binImg = BinaryImage(canvas, 0x10);
