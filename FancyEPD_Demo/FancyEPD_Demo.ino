@@ -78,19 +78,20 @@ void drawTriangles()
 {
 	epd.clearBuffer();
 
+	const float TRI = 3.1415926f * (2.0f / 3.0f);
+
 	for (uint8_t i = 0; i < 6; i++) {
 		int16_t x = random(epd.width());
 		int16_t y = random(epd.height());
 		int16_t r = random(2, 80);
-		float theta = random(0xffffff) * (1.0f / 0xffffff);
+		float theta = random(0xffffff) * (TRI / 0xffffff);
 
-		const float tri = 3.1415926f * (2.0f / 3.0f);
 		for (uint8_t p = 0; p < 3; p++) {
 			epd.drawLine(
-				x + r * cosf(theta + tri * p),
-				y + r * sinf(theta + tri * p),
-				x + r * cosf(theta + tri * (p + 1)),
-				y + r * sinf(theta + tri * (p + 1)),
+				x + r * cosf(theta + TRI * p),
+				y + r * sinf(theta + TRI * p),
+				x + r * cosf(theta + TRI * (p + 1)),
+				y + r * sinf(theta + TRI * (p + 1)),
 				0xff
 			);
 		}

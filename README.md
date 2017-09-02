@@ -8,8 +8,13 @@ Display fancy graphics on ePaper.
 * Multiple refresh sequences.
 * Monochrome grayscale images: 8bpp, 4bpp, 2bpp.
 * Border color.
+* Set rotation (screen orientation).
 
-## Supported Devices
-This project supports [Pervasive Displays' 2.15" E2215CS062 display](http://www.digikey.com/product-detail/en/pervasive-displays/E2215CS062/E2215CS062-ND/5975949), powered by [kicad-teensy-epaper](https://github.com/pdp7/kicad-teensy-epaper) by [Drew Fustini](https://github.com/pdp7).
+## Supported Screens
+* [Pervasive Displays' 2.15" E2215CS062 display](http://www.digikey.com/product-detail/en/pervasive-displays/E2215CS062/E2215CS062-ND/5975949)
+
+## Supported Boards
+*  [kicad-teensy-epaper](https://github.com/pdp7/kicad-teensy-epaper) by [Drew Fustini](https://github.com/pdp7)
+* ESP8266 (NodeMCU) thanks to [Gustavo Reynaga](https://github.com/hulkco)
 
 I would like to support more displays and projects with FancyEPD. Please [contact me](http://controlzinc.com/) if you're interested!
