@@ -8,7 +8,7 @@ function TerrainEncoding(binImg, width)
 
 	var offset = -1;
 	var accum = 0;
-	var terr = [];	// {.slope = (uint8), .distance = (uint32)}
+	var terr = [];	// {.slope = (uint8), .distance = (uint32), .wells = (Uint8Array)}
 
 	while (offset < binImg.length) {
 		var result = findBestTerrain(binImg, wellBuf, offset, accum);
@@ -24,49 +24,66 @@ function TerrainEncoding(binImg, width)
 			accum += result.slope;
 			offset++;
 		}
+
+		for (var w = 0; w < wells.length; w++) {
+			wells[w] = result.wells[w];
+		}
 	}
 
 	console.log("Terrain:", terr.length);
 	console.log(terr);
+
+	return terr;
 }
 
 // Do not modify wellBuf directly. Make a deep copy slice().
 function findBestTerrain(binImg, wellBuf, offset, accum)
 {
 	var bestSlope = 0;
+	var bestAccel = 0;
 	var bestDistance = 0;
+	var bestWells = null;
 
-	for (var slope = 0; slope <= 0xff; slope++) {
-		var wb = wellBuf.slice(0);
-		var wells = new Uint8Array(wb);
-		var os = offset + 1;
-		var ac = accum;
-		var dist = 0;
+	for (var startSlope = 0; startSlope <= 0xff; startSlope++) {
 
-		while (os < binImg.length) {
-			ac += slope;
-			wells[os % wells.length] += ac;
+		//for (var accel = -4; accel <= 3; accel++) {
+			var slope = startSlope;
+			var wb = wellBuf.slice(0);
+			var wells = new Uint8Array(wb);
+			var os = offset + 1;
+			var ac = accum;
+			var dist = 0;
 
-			var isWellOn = wells[os % wells.length] >= 128;
-			var isPxOn = binImg[os] ? true : false;
+			while (os < binImg.length) {
+				ac += slope;
+				//slope += accel;
+				wells[os % wells.length] += ac;
 
-			// Mismatched pixel? Then the slope stops here.
-			if (isWellOn != isPxOn) {
-				break;
+				var isWellOn = wells[os % wells.length] >= 128;
+				var isPxOn = binImg[os] ? true : false;
+
+				// Mismatched pixel? Then the slope stops here.
+				if (isWellOn != isPxOn) {
+					break;
+				}
+
+				dist++;
+				os++;
 			}
 
-			dist++;
-			os++;
-		}
-
-		if (dist > bestDistance) {
-			bestDistance = dist;
-			bestSlope = slope;
-		}
+			if (dist > bestDistance) {
+				bestDistance = dist;
+				bestSlope = startSlope;
+				bestAccel = accel;
+				bestWells = wells;
+			}
+		//}
 	}
 
 	return {
 		"slope": bestSlope,
-		"distance": bestDistance
+		"accel": bestAccel,
+		"distance": bestDistance,
+		"wells": bestWells,
 	};
 }

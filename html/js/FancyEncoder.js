@@ -56,7 +56,7 @@ function FancyEncoder(canvas, format)
 		}
 		break;
 
-		case "1bpp_monochrome_rle_vql":
+		case "1bpp_monochrome_rle_vlq":
 		{
 			var binImg = BinaryImage(canvas, 0x10);
 			var rle = RLE(binImg);
@@ -66,10 +66,40 @@ function FancyEncoder(canvas, format)
 		}
 		break;
 
-		case "1bpp_monochrome_terrain_vql":
+		case "1bpp_monochrome_terrain_vlq":
 		{
 			var binImg = BinaryImage(canvas, 0x10);
-			var ter = new TerrainEncoding(binImg, canvas.width);
+			var terr = new TerrainEncoding(binImg, canvas.width);
+
+			// Make a VLQ array
+			var data = [];
+			var slope = 0;
+			var distance = 0;
+			for (var i = 0; i < terr.length; i++) {
+				var step = terr[i];
+
+				// Differences
+				var slopeDiff = wrap(step.slope - slope, 256);
+				if (slopeDiff >= 128) {
+					slopeDiff -= 256;
+				}
+				data.push(slopeDiff);
+
+				var stepDiff = step.distance - distance;
+				data.push(stepDiff);
+
+				/*
+				var slope = step.slope;
+				if (slope >= 128) slope -= 256;
+				data.push(slope);
+				data.push(step.distance);
+				*/
+			}
+
+			console.log("data", data);
+
+			var vlq = VLQ(data, 2);
+			ar = vlq;
 
 			// Debug: Show bin img
 			var cvs = document.createElement('canvas');
