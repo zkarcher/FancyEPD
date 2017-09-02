@@ -47,8 +47,6 @@ FancyEPD::FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uin
 	_d0 = d0;
 	_d1 = d1;
 	_hardwareSPI = (d0 == 0xffff);
-	_width = _modelWidth(model);
-	_height = _modelHeight(model);
 	_temperature = 0x1A;
 	_borderColor = 0x0;
 	_borderBit = 0x0;
@@ -96,16 +94,6 @@ bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
 	return true;
 }
 
-int16_t FancyEPD::width()
-{
-	return _width;
-}
-
-int16_t FancyEPD::height()
-{
-	return _height;
-}
-
 uint8_t * FancyEPD::getBuffer()
 {
 	return _buffer;
@@ -114,7 +102,7 @@ uint8_t * FancyEPD::getBuffer()
 uint32_t FancyEPD::getBufferSize()
 {
 	// Assumes 1-bit buffer
-	return (_width * _height) / 8;
+	return (WIDTH * HEIGHT) / 8;
 }
 
 void FancyEPD::clearBuffer(uint8_t color)
@@ -132,15 +120,15 @@ void FancyEPD::drawPixel(int16_t x, int16_t y, uint16_t color)
 		case 1:
 		{
 			temp = x;
-			x = (_width - 1) - y;
+			x = (WIDTH - 1) - y;
 			y = temp;
 		}
 		break;
 
 		case 2:
 		{
-			x = (_width - 1) - x;
-			y = (_height - 1) - y;
+			x = (WIDTH - 1) - x;
+			y = (HEIGHT - 1) - y;
 		}
 		break;
 
@@ -148,7 +136,7 @@ void FancyEPD::drawPixel(int16_t x, int16_t y, uint16_t color)
 		{
 			temp = x;
 			x = y;
-			y = (_height - 1) - temp;
+			y = (HEIGHT - 1) - temp;
 		}
 		break;
 
@@ -156,7 +144,7 @@ void FancyEPD::drawPixel(int16_t x, int16_t y, uint16_t color)
 			break;
 	}
 
-	uint8_t *ptr = &_buffer[(x / 8) + y * ((_width + 7) / 8)];
+	uint8_t *ptr = &_buffer[(x / 8) + y * ((WIDTH + 7) / 8)];
 
 	if (color) {
 		*ptr |= 0x80 >> (x & 7);
@@ -520,7 +508,7 @@ void FancyEPD::_sendUpdateActivation(epd_update_t update_type)
 
 void FancyEPD::_reset_xy()
 {
-	_send_xy_window(0, (width() >> 3) - 1, 0, height() - 1);
+	_send_xy_window(0, (WIDTH >> 3) - 1, 0, HEIGHT - 1);
 	_send_xy_counter(0, 0);
 }
 
