@@ -50,8 +50,6 @@ class FancyEPD : public Adafruit_GFX {
 public:
 	FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uint32_t bs, uint32_t d0 = 0xffff, uint32_t d1 = 0xffff);
 	bool init(uint8_t * optionalBuffer = NULL, epd_image_format_t bufferFormat = k_image_1bit);
-	int16_t width();
-	int16_t height();
 	uint8_t * getBuffer();
 	uint32_t getBufferSize();
 	void clearBuffer(uint8_t color = 0);
@@ -72,7 +70,6 @@ protected:
 	uint8_t * _buffer;
 	bool _didMallocBuffer;
 	epd_image_format_t _bufferFormat;
-	int16_t _width, _height;
 
 	void _waitUntilNotBusy();
 	void _softwareSPI(uint8_t data);

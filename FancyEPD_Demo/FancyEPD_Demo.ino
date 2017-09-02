@@ -5,6 +5,8 @@
 
 #define DELAY_BETWEEN_IMAGES_MS       (6 * 1000)
 
+#define DO_ROTATION                   (true)
+
 // Pins set for project: github.com/pdp7/kicad-teensy-epaper
 
 //FancyEPD epd(k_epd_model_E2215CS062, 17, 16, 14, 15, 13, 11);	// software SPI
@@ -21,28 +23,33 @@ void setup() {
 }
 
 void loop() {
+	if (DO_ROTATION) epd.setRotation(0);
 	drawCircles();
 	drawLabel("Update:\n builtin_refresh");
 	epd.setBorderColor(0x00);	// white
 	epd.updateScreen(k_update_builtin_refresh);
 	delay(DELAY_BETWEEN_IMAGES_MS);
 
-	drawLines();
+	if (DO_ROTATION) epd.setRotation(1);
+	drawTriangles();
 	drawLabel("Update:\n  quick_refresh");
 	epd.updateScreen(k_update_quick_refresh);
 	delay(DELAY_BETWEEN_IMAGES_MS);
 
+	if (DO_ROTATION) epd.setRotation(2);
 	drawCircles();
 	drawLabel("Update:\n   no_blink");
 	epd.updateScreen(k_update_no_blink);
 	delay(DELAY_BETWEEN_IMAGES_MS);
 
-	drawLines();
+	if (DO_ROTATION) epd.setRotation(3);
+	drawTriangles();
 	drawLabel("Update:\n    partial");
 	epd.updateScreen(k_update_partial);
 	delay(DELAY_BETWEEN_IMAGES_MS);
 
 	// Angel
+	if (DO_ROTATION) epd.setRotation(0);
 	epd.setBorderColor(0xff);	// black
 	epd.updateScreenWithImage(angel_4bit, k_image_4bit_monochrome, k_update_quick_refresh);
 	delay(DELAY_BETWEEN_IMAGES_MS);
@@ -67,11 +74,26 @@ void drawCircles()
 	}
 }
 
-void drawLines()
+void drawTriangles()
 {
 	epd.clearBuffer();
-	for (uint8_t i = 0; i < 15; i++) {
-		epd.drawLine(random(epd.width()), random(epd.height()), random(epd.width()), random(epd.height()), 0xff);
+
+	for (uint8_t i = 0; i < 6; i++) {
+		int16_t x = random(epd.width());
+		int16_t y = random(epd.height());
+		int16_t r = random(2, 80);
+		float theta = random(0xffffff) * (1.0f / 0xffffff);
+
+		const float tri = 3.1415926f * (2.0f / 3.0f);
+		for (uint8_t p = 0; p < 3; p++) {
+			epd.drawLine(
+				x + r * cosf(theta + tri * p),
+				y + r * sinf(theta + tri * p),
+				x + r * cosf(theta + tri * (p + 1)),
+				y + r * sinf(theta + tri * (p + 1)),
+				0xff
+			);
+		}
 	}
 }
 
