@@ -1,25 +1,35 @@
-<img id="image"></img>
+<html>
 
-<script src="js/vendor/jquery-3.2.1.js"></script>
-<script src="js/util/math_util.js"></script>
-<script src="js/BinaryImage.js"></script>
-<script src="js/Bitstream.js"></script>
-<script src="js/RLE.js"></script>
-<script src="js/VLQ.js"></script>
-<script src="js/TerrainEncoding.js"></script>
-<script src="js/FancyEncoder.js"></script>
+<head>
+	<link href="https://fonts.googleapis.com/css?family=Asap+Condensed" rel="stylesheet">
 
-<script>
-var img = document.getElementById('image');
-$(img).attr("src", "img/angel2.png");
-$(img).on("load", function(){
-	console.log("loaded");
+	<link rel="stylesheet" href="css/image_gen.css"></link>
 
-	var canvas = document.createElement('canvas');
-	canvas.width = img.width;
-	canvas.height = img.height;
-	canvas.getContext('2d').drawImage(img, 0, 0, img.width, img.height);
+	<script src="js/vendor/jquery-3.2.1.js"></script>
+	<script src="js/vendor/jquery.filedrop.js"></script>
+	<script src="js/vendor/underscore-1.8.3.js"></script>
 
-	var enc = new FancyEncoder(canvas, "1bpp_monochrome_rle_xor_vlq");
-});
-</script>
+	<script src="js/util/math_util.js"></script>
+	<script src="js/BinaryImage.js"></script>
+	<script src="js/Bitstream.js"></script>
+	<script src="js/RLE.js"></script>
+	<script src="js/VLQ.js"></script>
+	<script src="js/TerrainEncoding.js"></script>
+	<script src="js/FancyEncoder.js"></script>
+	<script src="js/image_gen.js"></script>
+</head>
+
+<body>
+	<h1>FancyEPD Image Generator</h1>
+
+	<h2>Screen Select</h2>
+	<select id="screen"></select>
+
+	<h2>Upload Image</h2>
+	<div id="dropzone" width="150" height="200">
+		<canvas id="drop_canvas"></canvas>
+		<p id="drop_help">Drop an</br>image here!</p>
+	</canvas>
+</body>
+
+</html>
