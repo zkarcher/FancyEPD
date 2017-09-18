@@ -1,44 +1,55 @@
-<img id="image"></img>
+<html>
 
-<script src="jquery-3.2.1.js"></script>
+<head>
+	<link href="https://fonts.googleapis.com/css?family=Asap+Condensed" rel="stylesheet">
 
-<script>
-var img = document.getElementById('image');
-$(img).attr("src", "doggy.png");
-$(img).on("load", function(){
-	console.log("loaded");
+	<link rel="stylesheet" href="css/image_gen.css"></link>
 
-	var canvas = document.createElement('canvas');
-	canvas.width = img.width;
-	canvas.height = img.height;
-	canvas.getContext('2d').drawImage(img, 0, 0, img.width, img.height);
-	console.log("wtf?", canvas);
+	<script src="js/vendor/jquery-3.2.1.js"></script>
+	<script src="js/vendor/jquery.filedrop.js"></script>
+	<script src="js/vendor/underscore-1.8.3.js"></script>
 
-	var data = canvas.getContext('2d').getImageData(0, 0, img.width, img.height).data;
+	<script src="js/util/math_util.js"></script>
+	<script src="js/BinaryImage.js"></script>
+	<script src="js/Bitstream.js"></script>
+	<!--
+	<script src="js/RLE.js"></script>
+	<script src="js/VLQ.js"></script>
+	<script src="js/TerrainEncoding.js"></script>
+	-->
+	<script src="js/FancyEncoder.js"></script>
+	<script src="js/image_gen.js"></script>
+</head>
 
-	var ar = [];
-	/*
-	// 4-bit color, 2 pixels per byte
-	for (var i = 0; i < data.length; i += 8) {
-		var byte = (data[i] & 0xf0) | ((data[i + 4] & 0xf0) >> 4);
-		byte = 0xff - byte;
-		ar.push(byte);
-	}
-	*/
+<body>
+	<h1>FancyEPD Image Generator</h1>
 
-	// 2-bit color, 4 pixels per byte
-	for (var i = 0; i < data.length; i += 16) {
-		var byte = (data[i] & 0xc0) | ((data[i + 4] & 0xc0) >> 2) | ((data[i + 8] & 0xc0) >> 4) | ((data[i + 12] & 0xc0) >> 6);
-		byte = 0xff - byte;
-		ar.push(byte);
-	}
+	<h2>Screen select</h2>
+	<select id="screen"></select>
+	<input name="orientation" value="portrait" type="radio" checked="true"><label>Portrait</label></input>
+	<input name="orientation" value="landscape" type="radio"><label>Landscape</label></input>
 
-	var str = "";
-	while (ar.length) {
-		var chunk = ar.splice(0, 16);
-		str += chunk.join(",") + ",\n";
-	}
+	<h2>Palette select</h2>
+	<select id="palette"></select>
 
-	console.log(str);
-});
-</script>
+	<h2>Upload image</h2>
+	<div id="dropzone" width="150" height="200">
+		<canvas id="drop_canvas"></canvas>
+		<p id="drop_help">Drop an</br>image here!</p>
+	</div>
+
+	<div id="codeSuccess" style="display: none;">
+
+		<h2>C Code</h2>
+		<p class="help">Copy this code into your project:</p>
+		<textarea id="c_code" rows="4" cols="80"></textarea>
+		<p id="copy"><a id="copy_to_clipboard">(copy to clipboard)</a> <span id="copy_result"></span></p>
+
+		<h2>Usage example</h2>
+		<p id="usage_example"></p>
+
+	</div>
+
+</body>
+
+</html>

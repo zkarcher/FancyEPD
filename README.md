@@ -4,11 +4,11 @@ Display fancy graphics on ePaper.
 ![Photo of ePaper display: Angel](https://raw.githubusercontent.com/zkarcher/FancyEPD/master/images/angel_small.jpg) ![Photo of ePaper display: Angel #2](https://raw.githubusercontent.com/zkarcher/FancyEPD/master/images/angel2_small.jpg)
 
 ## Features
+* Grayscale images.
 * Partial updates. (No screen flash.)
-* Multiple refresh sequences.
-* Monochrome grayscale images: 8bpp, 4bpp, 2bpp.
+* Multiple refresh sequences to choose from.
 * Border color.
-* Set rotation (screen orientation).
+* Rotation (screen orientation).
 
 ## Supported Screens
 * [Pervasive Displays' 2.15" E2215CS062 display](http://www.digikey.com/product-detail/en/pervasive-displays/E2215CS062/E2215CS062-ND/5975949)
