@@ -9,6 +9,7 @@ Display fancy graphics on ePaper.
 * Multiple refresh sequences to choose from.
 * Border color.
 * Rotation (screen orientation).
+* Convert images to C code, using the [`image_gen.js` tool](http://zacharcher.com/lab/FancyEPD/html/image_gen.html).
 
 ## Supported Screens
 * [Pervasive Displays' 2.15" E2215CS062 display](http://www.digikey.com/product-detail/en/pervasive-displays/E2215CS062/E2215CS062-ND/5975949)
@@ -17,4 +18,6 @@ Display fancy graphics on ePaper.
 *  [kicad-teensy-epaper](https://github.com/pdp7/kicad-teensy-epaper) by [Drew Fustini](https://github.com/pdp7)
 * ESP8266 (NodeMCU) thanks to [Gustavo Reynaga](https://github.com/hulkco)
 
-I would like to support more displays and projects with FancyEPD. Please [contact me](http://controlzinc.com/) if you're interested!
+## Future Plans
+* Image compression.
+* Support more ePaper displays, and projects. Please [contact me](http://controlzinc.com/) if you're interested!
