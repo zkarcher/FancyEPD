@@ -30,6 +30,7 @@ typedef enum epd_update_t {
 	k_update_auto,
 
 	// Only applies voltage to changed pixels.
+	// (Not recommended) k_update_no_blink usually looks better.
 	k_update_partial,
 
 	// Stronger than _partial. Best for general use.
@@ -70,6 +71,7 @@ protected:
 	uint8_t * _buffer;
 	bool _didMallocBuffer;
 	epd_image_format_t _bufferFormat;
+	uint8_t _updatesSinceRefresh;
 
 	void _waitUntilNotBusy();
 	void _softwareSPI(uint8_t data);

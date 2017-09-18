@@ -3,6 +3,8 @@
 #include "Adafruit_GFX.h"
 #include "FancyEPD.h"
 
+#define AUTO_REFRESH_AFTER_UPDATES   (5)
+
 static int16_t _modelWidth(epd_model_t model)
 {
 	switch (model) {
@@ -50,6 +52,7 @@ FancyEPD::FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uin
 	_temperature = 0x1A;
 	_borderColor = 0x0;
 	_borderBit = 0x0;
+	_updatesSinceRefresh = 0xFF;
 }
 
 bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
@@ -161,7 +164,11 @@ void FancyEPD::setBorderColor(uint8_t color)
 void FancyEPD::updateScreen(epd_update_t update_type)
 {
 	if (update_type == k_update_auto) {
-		update_type = k_update_quick_refresh;
+		if (_updatesSinceRefresh < (AUTO_REFRESH_AFTER_UPDATES - 1)) {
+			update_type = k_update_no_blink;
+		} else {
+			update_type = k_update_quick_refresh;
+		}
 	}
 
 	_waitUntilNotBusy();
@@ -286,6 +293,8 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 		default: break;
 	}
 
+	// Next `_auto` update: Trigger a refresh.
+	_updatesSinceRefresh = 0xFF;
 }
 
 void FancyEPD::setTemperature(uint8_t temperature)
@@ -374,6 +383,13 @@ void FancyEPD::_sendData(uint8_t command, uint8_t * data, uint16_t len) {
 
 void FancyEPD::_prepareForScreenUpdate(epd_update_t update_type)
 {
+	if ((update_type == k_update_quick_refresh) || (update_type == k_update_builtin_refresh)) {
+		_updatesSinceRefresh = 0;
+
+	} else if (_updatesSinceRefresh < 0xFF) {
+		_updatesSinceRefresh++;
+	}
+
 	_sendDriverOutput();
 	_sendGateScanStart();
 	_sendDataEntryMode();
