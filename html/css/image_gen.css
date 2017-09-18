@@ -1,0 +1,80 @@
+body {
+	background-color: #14110d;
+	margin: 5pt 20pt;
+}
+
+p,h1,h2,h3,h4,h5,h6,label {
+	color: #fff4eb;
+	margin-top: 1.2em;
+	margin-bottom: 0.2em;
+	font-family: 'Asap Condensed', sans-serif;
+	letter-spacing: 0.03em;
+	word-spacing: 0.1em;
+}
+
+label {
+	color: #bfb4ab;
+}
+
+h1 {
+}
+
+h2 {
+
+}
+
+#dropzone, #dropzone * {
+	margin: 0;
+	padding: 0;
+}
+
+#dropzone {
+	background-color: #555;
+	position: relative;
+	width: 150px;
+	height: 150px;
+}
+
+#drop_canvas {
+}
+
+#drop_help {
+	text-align: center;
+	width: 100%;
+	position: absolute;
+	left: 0;
+	top: 50%;
+	transform: translate(0, -50%);
+	z-index: 99;
+	color: #4f4;
+}
+
+#c_code {
+	font-size: 0.8em;
+	font-family: monospace;
+	background-color: #000;
+	color: #999;
+}
+
+textarea {
+	margin: 0;
+	padding: 0;
+}
+
+#copy {
+	font-size: 0.8em;
+	margin: 0;
+	padding: 0;
+}
+
+a {
+	color: #0ff;
+	cursor: pointer;
+}
+
+#usage_example {
+	background-color: #333;
+	padding: 20px;
+	font-family: monospace;
+	color: #0f0;
+}

@@ -12,9 +12,11 @@
 	<script src="js/util/math_util.js"></script>
 	<script src="js/BinaryImage.js"></script>
 	<script src="js/Bitstream.js"></script>
+	<!--
 	<script src="js/RLE.js"></script>
 	<script src="js/VLQ.js"></script>
 	<script src="js/TerrainEncoding.js"></script>
+	-->
 	<script src="js/FancyEncoder.js"></script>
 	<script src="js/image_gen.js"></script>
 </head>
@@ -22,14 +24,32 @@
 <body>
 	<h1>FancyEPD Image Generator</h1>
 
-	<h2>Screen Select</h2>
+	<h2>Screen select</h2>
 	<select id="screen"></select>
+	<input name="orientation" value="portrait" type="radio" checked="true"><label>Portrait</label></input>
+	<input name="orientation" value="landscape" type="radio"><label>Landscape</label></input>
 
-	<h2>Upload Image</h2>
+	<h2>Palette select</h2>
+	<select id="palette"></select>
+
+	<h2>Upload image</h2>
 	<div id="dropzone" width="150" height="200">
 		<canvas id="drop_canvas"></canvas>
 		<p id="drop_help">Drop an</br>image here!</p>
-	</canvas>
+	</div>
+
+	<div id="codeSuccess" style="display: none;">
+
+		<h2>C Code</h2>
+		<p class="help">Copy this code into your project:</p>
+		<textarea id="c_code" rows="4" cols="80"></textarea>
+		<p id="copy"><a id="copy_to_clipboard">(copy to clipboard)</a> <span id="copy_result"></span></p>
+
+		<h2>Usage example</h2>
+		<p id="usage_example"></p>
+
+	</div>
+
 </body>
 
 </html>

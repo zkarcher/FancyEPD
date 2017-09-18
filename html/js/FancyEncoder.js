@@ -1,6 +1,7 @@
 function FancyEncoder(canvas, format)
 {
 	var self = this;
+	self.output = null;
 
 	var data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
 
@@ -167,21 +168,23 @@ function FancyEncoder(canvas, format)
 
 	}
 
-	console.log(format, ":: LENGTH:", ar.length);
+	//console.log(format, ":: LENGTH:", ar.length);
 
-	var str = "";
+	var out = "";
 	while (ar.length) {
-		str += "\t";
+		out += "\t";
 
 		var chunk = ar.splice(0, 16);
 
 		while (chunk.length) {
-			str += ("   " + chunk.shift()).substr(-3) + ",";
+			out += ("   " + chunk.shift()).substr(-3) + ",";
 		}
 
-		str += "\n";
+		out += "\n";
 	}
 
-	console.log(str);
+	//console.log(out);
+
+	self.output = out;
 
 }
