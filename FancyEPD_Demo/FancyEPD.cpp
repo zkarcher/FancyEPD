@@ -53,6 +53,7 @@ FancyEPD::FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uin
 	_borderColor = 0x0;
 	_borderBit = 0x0;
 	_updatesSinceRefresh = 0xFF;
+	markEntireDisplayDirty();
 }
 
 bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
@@ -111,6 +112,30 @@ uint32_t FancyEPD::getBufferSize()
 void FancyEPD::clearBuffer(uint8_t color)
 {
 	memset(_buffer, color, getBufferSize());
+	markEntireDisplayDirty();
+}
+
+// Default behavior: Only push data for changed pixels.
+// Use this method to mark the entire display dirty, and
+// send the entire _buffer to the EPD. (It's slower.)
+void FancyEPD::markEntireDisplayDirty()
+{
+	_window = (window16){
+		.xMin = 0,
+		.yMin = 0,
+		.xMax = WIDTH - 1,
+		.yMax = HEIGHT - 1
+	};
+}
+
+void FancyEPD::markEntireDisplayClean()
+{
+	_window = (window16){
+		.xMin = WIDTH - 1,
+		.yMin = HEIGHT - 1,
+		.xMax = 0,
+		.yMax = 0
+	};
 }
 
 // Override Adafruit_GFX basic function for setting pixels
@@ -154,6 +179,11 @@ void FancyEPD::drawPixel(int16_t x, int16_t y, uint16_t color)
 	} else {
 		*ptr &= ~(0x80 >> (x & 7));
 	}
+
+	_window.xMin = min(x, _window.xMin);
+	_window.yMin = min(y, _window.yMin);
+	_window.xMax = max(x, _window.xMax);
+	_window.yMax = max(y, _window.yMax);
 }
 
 void FancyEPD::setBorderColor(uint8_t color)
@@ -172,7 +202,7 @@ void FancyEPD::updateScreen(epd_update_t update_type)
 	}
 
 	_waitUntilNotBusy();
-	_prepareForScreenUpdate(update_type);
+	_screenWillUpdate(update_type);
 	_sendImageData();
 	_sendUpdateActivation(update_type);
 }
@@ -195,14 +225,14 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 	if (do_blink) {
 		_waitUntilNotBusy();
 		clearBuffer();
-		_prepareForScreenUpdate(update_type);
+		_screenWillUpdate(update_type);
 		_sendBorderBit(update_type, 0);	// white border
 		_sendImageData();
 		_sendUpdateActivation(update_type);
 
 	} else {
 		_waitUntilNotBusy();
-		_prepareForScreenUpdate(k_update_none);	// Don't apply waveforms here
+		_screenWillUpdate(k_update_none);	// Don't apply waveforms here
 	}
 
 	epd_update_t draw_scheme = k_update_INTERNAL_monochrome_tree;
@@ -220,6 +250,8 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 				uint8_t mask2 = 0x1 << (b + 2);
 				uint8_t mask3 = 0x1 << (b);
 
+				markEntireDisplayClean();
+
 				for (int16_t y = 0; y < _height; y++) {
 					for (int16_t x = 0; x < _width; x += 4) {
 						uint8_t _byte = data[offset++];
@@ -233,6 +265,7 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 
 				_waitUntilNotBusy();
 				_sendBorderBit(draw_scheme, (_borderColor & mask0) ? 1 : 0);
+				_sendWindow();
 				_sendImageData();
 				_sendUpdateActivation(draw_scheme);
 			}
@@ -245,6 +278,8 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 				uint16_t offset = 0;
 				uint8_t mask_hi = 0x1 << (b + 4);
 				uint8_t mask_lo = 0x1 << b;
+
+				markEntireDisplayClean();
 
 				for (int16_t y = 0; y < _height; y++) {
 					for (int16_t x = 0; x < _width; x += 2) {
@@ -260,6 +295,7 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 
 				_waitUntilNotBusy();
 				_sendBorderBit(draw_scheme, (_borderColor & mask_hi) ? 1 : 0);
+				_sendWindow();
 				_sendImageData();
 				_sendUpdateActivation(draw_scheme);
 			}
@@ -274,6 +310,8 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 				uint16_t offset = 0;
 				uint8_t mask = 0x10 << b;
 
+				markEntireDisplayClean();
+
 				for (int16_t y = 0; y < _height; y++) {
 					for (int16_t x = 0; x < _width; x++) {
 						uint8_t _byte = data[offset++];
@@ -284,6 +322,7 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 
 				_waitUntilNotBusy();
 				_sendBorderBit(draw_scheme, (_borderColor & mask) ? 1 : 0);
+				_sendWindow();
 				_sendImageData();
 				_sendUpdateActivation(draw_scheme);
 			}
@@ -381,7 +420,7 @@ void FancyEPD::_sendData(uint8_t command, uint8_t * data, uint16_t len) {
 	}
 }
 
-void FancyEPD::_prepareForScreenUpdate(epd_update_t update_type)
+void FancyEPD::_screenWillUpdate(epd_update_t update_type)
 {
 	if ((update_type == k_update_quick_refresh) || (update_type == k_update_builtin_refresh)) {
 		_updatesSinceRefresh = 0;
@@ -398,7 +437,7 @@ void FancyEPD::_prepareForScreenUpdate(epd_update_t update_type)
 	_sendTemperatureSensor();
 	_sendWaveforms(update_type);
 	_sendBorderBit(update_type, (_borderColor & 0x80) ? 1 : 0);
-	_reset_xy();
+	_sendWindow();
 }
 
 void FancyEPD::_sendDriverOutput()
@@ -507,7 +546,30 @@ void FancyEPD::_sendBorderBit(epd_update_t update_type, uint8_t newBit)
 
 void FancyEPD::_sendImageData()
 {
-	_sendData(0x24, _buffer, getBufferSize());
+	int16_t xMinByte = _window.xMin >> 3;
+	int16_t xMaxByte = _window.xMax >> 3;
+	int16_t yMin = _window.yMin;
+	int16_t yMax = _window.yMax;
+	uint16_t len = ((xMaxByte - xMinByte) + 1) * ((yMax - yMin) + 1);
+
+	// Window: Do not allocate another buffer. We may
+	// not have enough RAM. (Using Teensy LC, for example.)
+	// Instead: Arrange pixel bytes so stream starts at [0].
+	bool doArrange = (xMinByte > 0) ||
+	                 (xMaxByte < ((WIDTH - 1) >> 3)) ||
+	                 (yMin > 0) ||
+	                 (yMax < (HEIGHT - 1));
+
+	if (doArrange) {
+		_swapBufferBytes(xMinByte, yMin, xMaxByte, yMax, true);
+	}
+
+	_sendData(0x24, &_buffer[0], len);
+
+	// After sending: Swap everything back.
+	if (doArrange) {
+		_swapBufferBytes(xMinByte, yMin, xMaxByte, yMax, false);
+	}
 }
 
 void FancyEPD::_sendUpdateActivation(epd_update_t update_type)
@@ -520,24 +582,70 @@ void FancyEPD::_sendUpdateActivation(epd_update_t update_type)
 	_sendData(0x22, &sequence, 1);	// Display Update type
 
 	_sendData(0x20, NULL, 0);	// Master activation
+
+	// The screen pixels now match _buffer. All clean!
+	markEntireDisplayClean();
 }
 
-void FancyEPD::_reset_xy()
+void FancyEPD::_sendWindow()
 {
-	_send_xy_window(0, (WIDTH >> 3) - 1, 0, HEIGHT - 1);
-	_send_xy_counter(0, 0);
-}
-
-void FancyEPD::_send_xy_window(uint8_t xs, uint8_t xe, uint8_t ys, uint8_t ye)
-{
-	uint8_t data_x[] = {xs, xe};
+	// Window coordinates
+	uint8_t data_x[] = {
+		(uint8_t)(_window.xMin >> 3),
+		(uint8_t)(_window.xMax >> 3)
+	};
 	_sendData(0x44, data_x, 2);
-	uint8_t data_y[] = {ys, ye};
+
+	uint8_t data_y[] = {
+		(uint8_t)(_window.yMin),
+		(uint8_t)(_window.yMax)
+	};
 	_sendData(0x45, data_y, 2);
+
+	// XY counter
+	uint8_t xByte = _window.xMin >> 3;
+	uint8_t yByte = _window.yMin;
+	_sendData(0x4E, &xByte, 1);
+	_sendData(0x4F, &yByte, 1);
 }
 
-void FancyEPD::_send_xy_counter(uint8_t x, uint8_t y)
+// For streaming windowed region, without allocating another
+// buffer: Arrange pixel bytes so stream starts at [0].
+void FancyEPD::_swapBufferBytes(int16_t xMinByte, int16_t yMin, int16_t xMaxByte, int16_t yMax, bool ascending)
 {
-	_sendData(0x4E, &x, 1);
-	_sendData(0x4F, &y, 1);
+	uint16_t len = ((xMaxByte - xMinByte) + 1) * ((yMax - yMin) + 1);
+
+	if (ascending) {
+		// Arrange windowed bytes starting at [0]
+		uint16_t b = 0;
+
+		for (int16_t y = yMin; y <= yMax; y++) {
+			uint16_t win = y * WIDTH + xMinByte;	// optimization
+
+			for (int16_t x = xMinByte; x <= xMaxByte; x++) {
+				uint8_t temp = _buffer[b];
+				_buffer[b] = _buffer[win];
+				_buffer[win] = temp;
+
+				b++;
+				win++;
+			}
+		}
+
+	} else {	// descending
+		uint16_t b = len - 1;
+
+		for (int16_t y = yMax; y >= yMin; y--) {
+			uint16_t win = y * WIDTH + xMaxByte;
+
+			for (int16_t x = xMaxByte; x >= xMinByte; x--) {
+				uint8_t temp = _buffer[b];
+				_buffer[b] = _buffer[win];
+				_buffer[win] = temp;
+
+				b--;
+				win--;
+			}
+		}
+	}
 }

@@ -47,6 +47,13 @@ typedef enum epd_update_t {
 
 } epd_update_t;
 
+typedef struct {
+	int16_t xMin;
+	int16_t yMin;
+	int16_t xMax;
+	int16_t yMax;
+} window16;
+
 class FancyEPD : public Adafruit_GFX {
 public:
 	FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uint32_t bs, uint32_t d0 = 0xffff, uint32_t d1 = 0xffff);
@@ -54,6 +61,8 @@ public:
 	uint8_t * getBuffer();
 	uint32_t getBufferSize();
 	void clearBuffer(uint8_t color = 0);
+	void markEntireDisplayDirty();
+	void markEntireDisplayClean();
 	void drawPixel(int16_t x, int16_t y, uint16_t color);
 	void setBorderColor(uint8_t color);
 	void updateScreen(epd_update_t update_type = k_update_auto);
@@ -73,11 +82,15 @@ protected:
 	epd_image_format_t _bufferFormat;
 	uint8_t _updatesSinceRefresh;
 
+	// Only redraw the pixels inside _window
+	window16 _window;
+
 	void _waitUntilNotBusy();
 	void _softwareSPI(uint8_t data);
 	void _sendData(uint8_t index, uint8_t * data, uint16_t len);
 
-	void _prepareForScreenUpdate(epd_update_t update_type);
+	void _screenWillUpdate(epd_update_t update_type);
+
 	void _sendDriverOutput();
 	void _sendGateScanStart();
 	void _sendDataEntryMode();
@@ -88,10 +101,9 @@ protected:
 	void _sendBorderBit(epd_update_t update_type, uint8_t newBit);
 	void _sendImageData();
 	void _sendUpdateActivation(epd_update_t update_type);
+	void _sendWindow();
 
-	void _reset_xy();
-	void _send_xy_window(uint8_t xs, uint8_t xe, uint8_t ys, uint8_t ye);
-	void _send_xy_counter(uint8_t x, uint8_t y);
+	void _swapBufferBytes(int16_t xMinByte, int16_t yMin, int16_t xMaxByte, int16_t yMax, bool ascending);
 };
 
 #endif

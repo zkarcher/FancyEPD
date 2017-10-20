@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <Adafruit_GFX.h>
 #include "FancyEPD.h"
-#include "FancyEPD_Demo_images.h"
+//#include "FancyEPD_Demo_images.h"
 
 #define DELAY_BETWEEN_IMAGES_MS       (6 * 1000)
 #define DO_ROTATION                   (true)
@@ -21,6 +21,15 @@ void setup() {
 		return;
 	}
 }
+
+// Animation
+/*
+int16_t ball_x = 0;
+int16_t ball_y = 0;
+void loop() {
+	delay(1000);
+}
+*/
 
 void loop() {
 	if (DO_ROTATION) epd.setRotation(0);
@@ -48,6 +57,7 @@ void loop() {
 	epd.updateScreen(k_update_partial);
 	delay(DELAY_BETWEEN_IMAGES_MS);
 
+	/*
 	// Angel
 	if (DO_ROTATION) epd.setRotation(0);
 	epd.setBorderColor(0xff);	// black
@@ -63,6 +73,7 @@ void loop() {
 	epd.setBorderColor(0x40);	// grey-ish
 	epd.updateScreenWithImage(doggy_2bit, k_image_2bit_monochrome, k_update_quick_refresh);
 	delay(DELAY_BETWEEN_IMAGES_MS);
+	*/
 }
 
 void drawCircles()
