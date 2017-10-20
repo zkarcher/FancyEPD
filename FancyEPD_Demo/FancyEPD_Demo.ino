@@ -22,16 +22,50 @@ void setup() {
 	}
 }
 
-// Animation
-/*
-int16_t ball_x = 0;
-int16_t ball_y = 0;
 void loop() {
+	loop_anim();
+	//loop_images();
+}
+
+// Animation
+int16_t ball_x = 0;
+int16_t dir_x = 4;
+int16_t ball_y = 0;
+int16_t dir_y = 4;
+const int16_t BALL_SZ = 32;
+
+void loop_anim() {
+	// Erase old position
+	epd.fillCircle(ball_x + BALL_SZ / 2, ball_y + BALL_SZ / 2, BALL_SZ / 2, 0x0);
+
+	ball_x += dir_x;
+	ball_y += dir_y;
+
+	if ((ball_x + BALL_SZ) >= epd.width()) {
+		dir_x *= -1;
+	} else if (ball_x <= 0) {
+		dir_x *= -1;
+	}
+
+	if ((ball_y + BALL_SZ) >= epd.height()) {
+		dir_y *= -1;
+	} else if (ball_y <= 0) {
+		dir_y *= -1;
+	}
+
+	// Draw new position
+	epd.fillCircle(ball_x + BALL_SZ / 2, ball_y + BALL_SZ / 2, BALL_SZ / 2, 0xff);
+
+	epd.markEntireDisplayDirty();
+
+	epd.setBorderColor(0xff);
+
+	epd.updateScreen(k_update_no_blink);
+
 	delay(1000);
 }
-*/
 
-void loop() {
+void loop_images() {
 	if (DO_ROTATION) epd.setRotation(0);
 	drawCircles();
 	drawLabel("Update:\n builtin_refresh");
