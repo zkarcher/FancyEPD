@@ -53,6 +53,7 @@ FancyEPD::FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uin
 	_borderColor = 0x0;
 	_borderBit = 0x0;
 	_updatesSinceRefresh = 0xFF;
+	_isAnimationMode = false;
 	markEntireDisplayDirty();
 	_prevWindow = _window;
 }
@@ -114,6 +115,16 @@ void FancyEPD::clearBuffer(uint8_t color)
 {
 	memset(_buffer, color, getBufferSize());
 	markEntireDisplayDirty();
+}
+
+bool FancyEPD::getAnimationMode()
+{
+	return _isAnimationMode;
+}
+
+void FancyEPD::setAnimationMode(bool isOn)
+{
+	_isAnimationMode = isOn;
 }
 
 // Default behavior: Only push data for changed pixels.
@@ -604,6 +615,13 @@ void FancyEPD::_sendUpdateActivation(epd_update_t update_type)
 
 void FancyEPD::_sendWindow()
 {
+	// When not in animation mode: Always send a full
+	// screen of data. Images will look cleaner
+	// (less drift towards VCOM grey) but it's slower.
+	if (!_isAnimationMode) {
+		markEntireDisplayDirty();
+	}
+
 	// Multiplexing: Only MUX the rows which have changed
 	int16_t muxLines = max(16, _window.yMax - _window.yMin + 1);
 	uint8_t data_mux[] = {(uint8_t)muxLines, 0x0};

@@ -28,18 +28,37 @@ void loop() {
 	//loop_images();
 }
 
-// Animation
-const int8_t SPEED_X = 5;
-int16_t ball_x = 0;
-int16_t dir_x = SPEED_X;
-const int8_t SPEED_Y = 2;
-int16_t ball_y = 0;
-int16_t dir_y = SPEED_Y;
-const int16_t BALL_SZ = 32;
+int8_t drawsUntilModeSwitch = 0;
 
 void loop_boxes() {
+	epd_update_t updateType = k_update_no_blink;
+
+	drawsUntilModeSwitch--;
+
+	if (drawsUntilModeSwitch < 0) {
+		// Toggle animation mode
+		epd.setAnimationMode(!epd.getAnimationMode());
+
+		// Reset draw count
+		drawsUntilModeSwitch = (epd.getAnimationMode() ? 40 : 12);
+
+		// Draw label
+		if (epd.getAnimationMode()) {
+			drawLabel("Animation mode:\n         ON!");
+		} else {
+			drawLabel("Animation mode:\n    Off.");
+		}
+
+		// Flash the screen, clear all pixels
+		updateType = k_update_builtin_refresh;
+		epd.markEntireDisplayDirty();
+	}
+
+	uint8_t BOX_X = (epd.width() - 50) / 2;
+	uint8_t BOX_Y = (epd.height() - 50) / 2;
+
 	// Erase old boxes
-	epd.fillRect(10, 10, 50, 50, 0x0);
+	epd.fillRect(BOX_X, BOX_Y, 50, 50, 0x0);
 
 	uint32_t rando = (uint32_t)(random(0xffffffff));
 
@@ -48,12 +67,23 @@ void loop_boxes() {
 			rando >>= 1;
 			if (rando & 0x1) continue;
 
-			epd.fillRect(10 + x * 10, 10 + y * 10, 10, 10, 0xff);
+			epd.fillRect(BOX_X + x * 10, BOX_Y + y * 10, 10, 10, 0xff);
 		}
 	}
 
-	epd.updateScreen(k_update_no_blink);
+	epd.setBorderColor(0x0);
+
+	epd.updateScreen(updateType);
 }
+
+// Animation
+const int8_t SPEED_X = 5;
+int16_t ball_x = 0;
+int16_t dir_x = SPEED_X;
+const int8_t SPEED_Y = 2;
+int16_t ball_y = 0;
+int16_t dir_y = SPEED_Y;
+const int16_t BALL_SZ = 32;
 
 void loop_anim() {
 	// Erase old position

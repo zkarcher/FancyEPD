@@ -61,6 +61,8 @@ public:
 	uint8_t * getBuffer();
 	uint32_t getBufferSize();
 	void clearBuffer(uint8_t color = 0);
+	bool getAnimationMode();
+	void setAnimationMode(bool isOn);
 	void markEntireDisplayDirty();
 	void markEntireDisplayClean();
 	void drawPixel(int16_t x, int16_t y, uint16_t color);
@@ -82,7 +84,8 @@ protected:
 	epd_image_format_t _bufferFormat;
 	uint8_t _updatesSinceRefresh;
 
-	// Only redraw the pixels inside _window
+	// Animation mode: Only redraw the pixels inside _window
+	bool _isAnimationMode;
 	window16 _window, _prevWindow;
 
 	void _waitUntilNotBusy();
