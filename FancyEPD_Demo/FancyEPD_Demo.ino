@@ -28,10 +28,12 @@ void loop() {
 }
 
 // Animation
+const int8_t SPEED_X = 5;
 int16_t ball_x = 0;
-int16_t dir_x = 4;
+int16_t dir_x = SPEED_X;
+const int8_t SPEED_Y = 2;
 int16_t ball_y = 0;
-int16_t dir_y = 4;
+int16_t dir_y = SPEED_Y;
 const int16_t BALL_SZ = 32;
 
 void loop_anim() {
@@ -42,27 +44,25 @@ void loop_anim() {
 	ball_y += dir_y;
 
 	if ((ball_x + BALL_SZ) >= epd.width()) {
-		dir_x *= -1;
+		dir_x = -SPEED_X;
 	} else if (ball_x <= 0) {
-		dir_x *= -1;
+		dir_x = SPEED_X;
 	}
 
 	if ((ball_y + BALL_SZ) >= epd.height()) {
-		dir_y *= -1;
+		dir_y = -SPEED_Y;
 	} else if (ball_y <= 0) {
-		dir_y *= -1;
+		dir_y = SPEED_Y;
 	}
 
 	// Draw new position
 	epd.fillCircle(ball_x + BALL_SZ / 2, ball_y + BALL_SZ / 2, BALL_SZ / 2, 0xff);
 
-	epd.markEntireDisplayDirty();
+	//epd.markEntireDisplayDirty();
 
 	epd.setBorderColor(0xff);
 
 	epd.updateScreen(k_update_no_blink);
-
-	delay(1000);
 }
 
 void loop_images() {

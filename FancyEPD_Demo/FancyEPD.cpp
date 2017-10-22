@@ -526,6 +526,12 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type)
 	}
 
 	_sendData(0x32, data, lut_size);
+
+	// Shorter dummy line period?
+	/*
+	uint8_t zero = 0;
+	_sendData(0x3A, &zero, 1);
+	*/
 }
 
 void FancyEPD::_sendBorderBit(epd_update_t update_type, uint8_t newBit)
@@ -607,10 +613,18 @@ void FancyEPD::_sendWindow()
 	uint8_t yByte = _window.yMin;
 	_sendData(0x4E, &xByte, 1);
 	_sendData(0x4F, &yByte, 1);
+
+	// Multiplexing: Only MUX the rows which have changed
+	int16_t muxLines = max(16, _window.yMax - _window.yMin + 1);
+	uint8_t data_mux[] = {(uint8_t)muxLines, 0x0};
+	_sendData(0x01, data_mux, 2);
+
+	uint8_t gateStartY = min(_window.yMin, HEIGHT - (muxLines - 1));
+	_sendData(0x0F, &gateStartY, 1);
 }
 
 // For streaming windowed region, without allocating another
-// buffer: Arrange pixel bytes so stream starts at [0].
+// buffer: Arrange pixel bytes so stream starts at &_buffer[0].
 void FancyEPD::_swapBufferBytes(int16_t xMinByte, int16_t yMin, int16_t xMaxByte, int16_t yMax, bool ascending)
 {
 	uint16_t len = ((xMaxByte - xMinByte) + 1) * ((yMax - yMin) + 1);
@@ -620,7 +634,7 @@ void FancyEPD::_swapBufferBytes(int16_t xMinByte, int16_t yMin, int16_t xMaxByte
 		uint16_t b = 0;
 
 		for (int16_t y = yMin; y <= yMax; y++) {
-			uint16_t win = y * WIDTH + xMinByte;	// optimization
+			uint16_t win = y * (WIDTH >> 3) + xMinByte;	// optimization
 
 			for (int16_t x = xMinByte; x <= xMaxByte; x++) {
 				uint8_t temp = _buffer[b];
@@ -636,7 +650,7 @@ void FancyEPD::_swapBufferBytes(int16_t xMinByte, int16_t yMin, int16_t xMaxByte
 		uint16_t b = len - 1;
 
 		for (int16_t y = yMax; y >= yMin; y--) {
-			uint16_t win = y * WIDTH + xMaxByte;
+			uint16_t win = y * (WIDTH >> 3) + xMaxByte;
 
 			for (int16_t x = xMaxByte; x >= xMinByte; x--) {
 				uint8_t temp = _buffer[b];
