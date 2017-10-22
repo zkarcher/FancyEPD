@@ -23,7 +23,8 @@ void setup() {
 }
 
 void loop() {
-	loop_anim();
+	loop_boxes();
+	//loop_anim();
 	//loop_images();
 }
 
@@ -35,6 +36,24 @@ const int8_t SPEED_Y = 2;
 int16_t ball_y = 0;
 int16_t dir_y = SPEED_Y;
 const int16_t BALL_SZ = 32;
+
+void loop_boxes() {
+	// Erase old boxes
+	epd.fillRect(10, 10, 50, 50, 0x0);
+
+	uint32_t rando = (uint32_t)(random(0xffffffff));
+
+	for (uint8_t x = 0; x < 5; x++) {
+		for (uint8_t y = 0; y < 5; y++) {
+			rando >>= 1;
+			if (rando & 0x1) continue;
+
+			epd.fillRect(10 + x * 10, 10 + y * 10, 10, 10, 0xff);
+		}
+	}
+
+	epd.updateScreen(k_update_no_blink);
+}
 
 void loop_anim() {
 	// Erase old position
@@ -58,6 +77,7 @@ void loop_anim() {
 	// Draw new position
 	epd.fillCircle(ball_x + BALL_SZ / 2, ball_y + BALL_SZ / 2, BALL_SZ / 2, 0xff);
 
+	// FIXME ZKA: Remove this
 	//epd.markEntireDisplayDirty();
 
 	epd.setBorderColor(0xff);

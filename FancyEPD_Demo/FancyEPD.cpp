@@ -54,6 +54,7 @@ FancyEPD::FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uin
 	_borderBit = 0x0;
 	_updatesSinceRefresh = 0xFF;
 	markEntireDisplayDirty();
+	_prevWindow = _window;
 }
 
 bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
@@ -552,10 +553,14 @@ void FancyEPD::_sendBorderBit(epd_update_t update_type, uint8_t newBit)
 
 void FancyEPD::_sendImageData()
 {
-	int16_t xMinByte = _window.xMin >> 3;
-	int16_t xMaxByte = _window.xMax >> 3;
-	int16_t yMin = _window.yMin;
-	int16_t yMax = _window.yMax;
+	// To defeat double-buffering artifacts on the device:
+	// Send enough pixels to cover _prevWindow and _window.
+	int16_t xMinByte = min(_prevWindow.xMin, _window.xMin) >> 3;
+	int16_t xMaxByte = max(_prevWindow.xMax, _window.xMax) >> 3;
+	int16_t yMin = min(_prevWindow.yMin, _window.yMin);
+	int16_t yMax = max(_prevWindow.yMax, _window.yMax);
+
+	// Send this many bytes of image data:
 	uint16_t len = ((xMaxByte - xMinByte) + 1) * ((yMax - yMin) + 1);
 
 	// Window: Do not allocate another buffer. We may
@@ -589,31 +594,16 @@ void FancyEPD::_sendUpdateActivation(epd_update_t update_type)
 
 	_sendData(0x20, NULL, 0);	// Master activation
 
+	// To defeat double-buffering artifacts: Cache _window
+	// as _prevWindow.
+	_prevWindow = _window;
+
 	// The screen pixels now match _buffer. All clean!
 	markEntireDisplayClean();
 }
 
 void FancyEPD::_sendWindow()
 {
-	// Window coordinates
-	uint8_t data_x[] = {
-		(uint8_t)(_window.xMin >> 3),
-		(uint8_t)(_window.xMax >> 3)
-	};
-	_sendData(0x44, data_x, 2);
-
-	uint8_t data_y[] = {
-		(uint8_t)(_window.yMin),
-		(uint8_t)(_window.yMax)
-	};
-	_sendData(0x45, data_y, 2);
-
-	// XY counter
-	uint8_t xByte = _window.xMin >> 3;
-	uint8_t yByte = _window.yMin;
-	_sendData(0x4E, &xByte, 1);
-	_sendData(0x4F, &yByte, 1);
-
 	// Multiplexing: Only MUX the rows which have changed
 	int16_t muxLines = max(16, _window.yMax - _window.yMin + 1);
 	uint8_t data_mux[] = {(uint8_t)muxLines, 0x0};
@@ -621,6 +611,31 @@ void FancyEPD::_sendWindow()
 
 	uint8_t gateStartY = min(_window.yMin, HEIGHT - (muxLines - 1));
 	_sendData(0x0F, &gateStartY, 1);
+
+	// Window for image data: Send enough pixels to cover
+	// both _prevWindow and _window, defeat double-buffering
+	// artifacts on the device
+	int16_t xMin = min(_prevWindow.xMin, _window.xMin);
+	int16_t xMax = max(_prevWindow.xMax, _window.xMax);
+	int16_t yMin = min(_prevWindow.yMin, _window.yMin);
+	int16_t yMax = max(_prevWindow.yMax, _window.yMax);
+
+	// Window coordinates
+	uint8_t data_x[] = {
+		(uint8_t)(xMin >> 3),
+		(uint8_t)(xMax >> 3)
+	};
+	_sendData(0x44, data_x, 2);
+
+	uint8_t data_y[] = {
+		(uint8_t)(yMin),
+		(uint8_t)(yMax)
+	};
+	_sendData(0x45, data_y, 2);
+
+	// XY counter
+	_sendData(0x4E, &data_x[0], 1);
+	_sendData(0x4F, &data_y[0], 1);
 }
 
 // For streaming windowed region, without allocating another

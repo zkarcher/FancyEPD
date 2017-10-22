@@ -83,7 +83,7 @@ protected:
 	uint8_t _updatesSinceRefresh;
 
 	// Only redraw the pixels inside _window
-	window16 _window;
+	window16 _window, _prevWindow;
 
 	void _waitUntilNotBusy();
 	void _softwareSPI(uint8_t data);
