@@ -8,7 +8,7 @@
 static int16_t _modelWidth(epd_model_t model)
 {
 	switch (model) {
-		case k_epd_model_E2215CS062:    return 112;
+		case k_epd_E2215CS062:    return 112;
 		default:                        break;
 	}
 
@@ -18,7 +18,7 @@ static int16_t _modelWidth(epd_model_t model)
 static int16_t _modelHeight(epd_model_t model)
 {
 	switch (model) {
-		case k_epd_model_E2215CS062:    return 208;
+		case k_epd_E2215CS062:    return 208;
 		default:                        break;
 	}
 
@@ -54,8 +54,9 @@ FancyEPD::FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uin
 	_borderBit = 0x0;
 	_updatesSinceRefresh = 0xFF;
 	_isAnimationMode = false;
-	markEntireDisplayDirty();
+	markDisplayDirty();
 	_prevWindow = _window;
+	_lastUpdateType = k_update_none;
 }
 
 bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
@@ -114,7 +115,7 @@ uint32_t FancyEPD::getBufferSize()
 void FancyEPD::clearBuffer(uint8_t color)
 {
 	memset(_buffer, color, getBufferSize());
-	markEntireDisplayDirty();
+	markDisplayDirty();
 }
 
 bool FancyEPD::getAnimationMode()
@@ -130,7 +131,7 @@ void FancyEPD::setAnimationMode(bool isOn)
 // Default behavior: Only push data for changed pixels.
 // Use this method to mark the entire display dirty, and
 // send the entire _buffer to the EPD. (It's slower.)
-void FancyEPD::markEntireDisplayDirty()
+void FancyEPD::markDisplayDirty()
 {
 	_window = (window16){
 		.xMin = 0,
@@ -140,7 +141,7 @@ void FancyEPD::markEntireDisplayDirty()
 	};
 }
 
-void FancyEPD::markEntireDisplayClean()
+void FancyEPD::markDisplayClean()
 {
 	_window = (window16){
 		.xMin = WIDTH - 1,
@@ -203,7 +204,7 @@ void FancyEPD::setBorderColor(uint8_t color)
 	_borderColor = color;
 }
 
-void FancyEPD::updateScreen(epd_update_t update_type)
+void FancyEPD::update(epd_update_t update_type)
 {
 	if (update_type == k_update_auto) {
 		if (_updatesSinceRefresh < (AUTO_REFRESH_AFTER_UPDATES - 1)) {
@@ -219,12 +220,12 @@ void FancyEPD::updateScreen(epd_update_t update_type)
 	_sendUpdateActivation(update_type);
 }
 
-void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t format, epd_update_t update_type)
+void FancyEPD::updateWithImage(const uint8_t * data, epd_image_format_t format, epd_update_t update_type)
 {
-	// 1 bit (black & white)? Fall back on updateScreen()
+	// 1 bit (black & white)? Fall back on update()
 	if (format == k_image_1bit) {
 		memcpy(_buffer, data, getBufferSize());
-		updateScreen(update_type);
+		update(update_type);
 		return;
 	}
 
@@ -247,10 +248,6 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 		_screenWillUpdate(k_update_none);	// Don't apply waveforms here
 	}
 
-	epd_update_t draw_scheme = k_update_INTERNAL_monochrome_tree;
-	_waitUntilNotBusy();
-	_sendWaveforms(draw_scheme);
-
 	// Multiple draws will be required, for each bit.
 	switch(format) {
 		case k_image_2bit_monochrome:
@@ -262,7 +259,7 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 				uint8_t mask2 = 0x1 << (b + 2);
 				uint8_t mask3 = 0x1 << (b);
 
-				markEntireDisplayClean();
+				markDisplayClean();
 
 				for (int16_t y = 0; y < _height; y++) {
 					for (int16_t x = 0; x < _width; x += 4) {
@@ -275,11 +272,7 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 					}
 				}
 
-				_waitUntilNotBusy();
-				_sendBorderBit(draw_scheme, (_borderColor & mask0) ? 1 : 0);
-				_sendWindow();
-				_sendImageData();
-				_sendUpdateActivation(draw_scheme);
+				_sendImageLayer(b, 2, (_borderColor & mask0));
 			}
 		}
 		break;
@@ -291,7 +284,7 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 				uint8_t mask_hi = 0x1 << (b + 4);
 				uint8_t mask_lo = 0x1 << b;
 
-				markEntireDisplayClean();
+				markDisplayClean();
 
 				for (int16_t y = 0; y < _height; y++) {
 					for (int16_t x = 0; x < _width; x += 2) {
@@ -305,11 +298,7 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 					}
 				}
 
-				_waitUntilNotBusy();
-				_sendBorderBit(draw_scheme, (_borderColor & mask_hi) ? 1 : 0);
-				_sendWindow();
-				_sendImageData();
-				_sendUpdateActivation(draw_scheme);
+				_sendImageLayer(b, 4, (_borderColor & mask_hi));
 			}
 		}
 		break;
@@ -322,7 +311,7 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 				uint16_t offset = 0;
 				uint8_t mask = 0x10 << b;
 
-				markEntireDisplayClean();
+				markDisplayClean();
 
 				for (int16_t y = 0; y < _height; y++) {
 					for (int16_t x = 0; x < _width; x++) {
@@ -332,11 +321,7 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 					}
 				}
 
-				_waitUntilNotBusy();
-				_sendBorderBit(draw_scheme, (_borderColor & mask) ? 1 : 0);
-				_sendWindow();
-				_sendImageData();
-				_sendUpdateActivation(draw_scheme);
+				_sendImageLayer(b, 4, (_borderColor & mask) ? 1 : 0);
 			}
 		}
 		break;
@@ -348,7 +333,7 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 	_updatesSinceRefresh = 0xFF;
 }
 
-void updateScreenWithCompressedImage(const uint8_t * data, epd_update_t update_type = k_update_auto)
+void updateWithCompressedImage(const uint8_t * data, epd_update_t update_type = k_update_auto)
 {
 	// FIXME ZKA
 }
@@ -437,6 +422,21 @@ void FancyEPD::_sendData(uint8_t command, uint8_t * data, uint16_t len) {
 	}
 }
 
+void FancyEPD::_sendImageLayer(uint8_t layer_num, uint8_t layer_count, uint8_t newBorderBit)
+{
+	const epd_update_t draw_scheme = k_update_INTERNAL_image_layer;
+
+	// FIXME ZKA: support different image timings, based on layer_num and layer_count
+	uint8_t timing = 3;
+	_sendWaveforms(draw_scheme, timing);
+
+	_waitUntilNotBusy();
+	_sendBorderBit(draw_scheme, (newBorderBit) ? 1 : 0);
+	_sendWindow();
+	_sendImageData();
+	_sendUpdateActivation(draw_scheme);
+}
+
 void FancyEPD::_screenWillUpdate(epd_update_t update_type)
 {
 	if ((update_type == k_update_quick_refresh) || (update_type == k_update_builtin_refresh)) {
@@ -494,7 +494,8 @@ void FancyEPD::_sendTemperatureSensor()
 	_sendData(0x1A, data, 2);
 }
 
-void FancyEPD::_sendWaveforms(epd_update_t update_type)
+// time_0, time_1: optional overrides
+void FancyEPD::_sendWaveforms(epd_update_t update_type, int16_t time_0, int16_t time_1)
 {
 	uint8_t lut_size = 29;
 	uint8_t data[lut_size];
@@ -503,34 +504,36 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type)
 	switch (update_type) {
 		case k_update_partial:
 		{
+			if (time_0 < 0) time_0 = 30;
+
 			// Apply voltage only to pixels which change.
 			data[0] = waveformByte(_SOURCE, _LOW, _HIGH, _SOURCE);
-			data[16] = 20;	// timing
+			data[16] = (uint8_t)(time_0);	// timing
 		}
 		break;
 
+		case k_update_no_blink_fast:
 		case k_update_no_blink:
 		{
+			bool is_fast = (update_type == k_update_no_blink_fast);
+			if (time_0 < 0) time_0 = (is_fast ? 20 : 50);
+
 			// Apply voltage to all pixels, whether they change or not.
 			data[0] = waveformByte(_HIGH, _LOW, _HIGH, _LOW);
-			data[16] = 20;	// timing
+			data[16] = (uint8_t)(time_0);	// timing
 		}
 		break;
 
 		case k_update_quick_refresh:
 		{
+			if (time_0 < 0) time_0 = 12;
+			if (time_1 < 0) time_1 = 30;
+
 			data[0] = waveformByte(_LOW, _HIGH, _LOW, _HIGH);	// inverted image
 			data[1] = waveformByte(_HIGH, _LOW, _HIGH, _LOW);	// normal image
 
-			data[16] = 12;	// Inverted image: short flash
-			data[17] = 20;	// Normal image: apply longer
-		}
-		break;
-
-		case k_update_INTERNAL_monochrome_tree:
-		{
-			data[0] = waveformByte(_HIGH, _LOW, _HIGH, _LOW);
-			data[16] = 3;	// Short pulse
+			data[16] = (uint8_t)(time_0);	// Inverted image: short flash
+			data[17] = (uint8_t)(time_1);	// Normal image: apply longer
 		}
 		break;
 
@@ -538,16 +541,36 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type)
 		default:
 		{
 			// builtin_refresh: Waveforms are reset in _sendUpdateActivation()
+
+			//_lastUpdateType = update_type;
+
 			return;
 		}
+
+		case k_update_INTERNAL_image_layer:
+		{
+			if (time_0 < 0) time_0 = 3;
+
+			data[0] = waveformByte(_HIGH, _LOW, _HIGH, _LOW);
+			data[16] = (uint8_t)(time_0);	// Short pulse
+		}
+		break;
 	}
 
 	_sendData(0x32, data, lut_size);
 
-	// Shorter dummy line period?
+	// ZKA: Zero dummy line period? It's a tiny bit faster,
+	// but I'm not sure what dummy line period is used for.
+	// Gonna leave it alone, for now.
 	/*
 	uint8_t zero = 0;
 	_sendData(0x3A, &zero, 1);
+	*/
+
+	/*
+	_lastUpdateType = update_type;
+	_lastUpdateTime0 = time_0;
+	_lastUpdateTime1 = time_1;
 	*/
 }
 
@@ -615,7 +638,7 @@ void FancyEPD::_sendUpdateActivation(epd_update_t update_type)
 	_prevWindow = _window;
 
 	// The screen pixels now match _buffer. All clean!
-	markEntireDisplayClean();
+	markDisplayClean();
 }
 
 void FancyEPD::_sendWindow()
@@ -624,7 +647,7 @@ void FancyEPD::_sendWindow()
 	// screen of data. Images will look cleaner
 	// (less drift towards VCOM grey) but it's slower.
 	if (!_isAnimationMode) {
-		markEntireDisplayDirty();
+		markDisplayDirty();
 	}
 
 	// Multiplexing: Only MUX the rows which have changed

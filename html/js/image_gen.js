@@ -24,7 +24,7 @@ $(document).ready(function(){
 		// Add an <option> to the dropdown
 		$('#screen').append($("<option></option>")
 			.attr("value", key)
-			.text(key + " [" + dims.join(",") + "]"));
+			.text(key + " [" + dims.join(" × ") + "]"));
 	});
 
 	_.each(Object.keys(PALETTES), function(key){
@@ -163,10 +163,10 @@ $(document).ready(function(){
 
 		var usage = "";
 		if (!compression) {
-			usage = "epd.updateScreenWithImage( " + file_name + ", " + palette_enum + " );"
+			usage = "epd.updateWithImage( " + file_name + ", " + palette_enum + " );"
 
 		} else {
-			usage = "epd.updateScreenWithCompressedImage( " + file_name + " );"
+			usage = "epd.updateWithCompressedImage( " + file_name + " );"
 		}
 
 		$("#usage_example").text(usage);

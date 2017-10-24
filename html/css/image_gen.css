@@ -72,6 +72,10 @@ a {
 	cursor: pointer;
 }
 
+.emoji {
+	font-size: 125%;
+}
+
 #usage_example {
 	background-color: #333;
 	padding: 20px;

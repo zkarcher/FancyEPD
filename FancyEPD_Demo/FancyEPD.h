@@ -11,8 +11,8 @@
 #include <Adafruit_GFX.h>
 
 typedef enum epd_model_t {
-	k_epd_model_none = 0,
-	k_epd_model_E2215CS062,	// Pervasive Displays 2.15" : http://www.pervasivedisplays.com/products/215
+	k_epd_none = 0,
+	k_epd_E2215CS062,	// Pervasive Displays 2.15" : http://www.pervasivedisplays.com/products/215
 } epd_model_t;
 
 typedef enum epd_image_format_t {
@@ -34,7 +34,8 @@ typedef enum epd_update_t {
 	k_update_partial,
 
 	// Stronger than _partial. Best for general use.
-	k_update_no_blink,
+	k_update_no_blink_fast,	// faster, more ghosting
+	k_update_no_blink,	// slower, less ghosting
 
 	// Quick inverted->normal transition.
 	k_update_quick_refresh,
@@ -42,8 +43,8 @@ typedef enum epd_update_t {
 	// Manufacturer's default. Exciting blink and strobe effects.
 	k_update_builtin_refresh,
 
-	// Internal: Used for drawing monochrome images
-	k_update_INTERNAL_monochrome_tree,
+	// INTERNAL (Don't use!)
+	k_update_INTERNAL_image_layer,	// grayscale image layers
 
 } epd_update_t;
 
@@ -63,13 +64,13 @@ public:
 	void clearBuffer(uint8_t color = 0);
 	bool getAnimationMode();
 	void setAnimationMode(bool isOn);
-	void markEntireDisplayDirty();
-	void markEntireDisplayClean();
+	void markDisplayDirty();
+	void markDisplayClean();
 	void drawPixel(int16_t x, int16_t y, uint16_t color);
 	void setBorderColor(uint8_t color);
-	void updateScreen(epd_update_t update_type = k_update_auto);
-	void updateScreenWithImage(const uint8_t * data, epd_image_format_t format, epd_update_t update_type = k_update_auto);
-	void updateScreenWithCompressedImage(const uint8_t * data, epd_update_t update_type = k_update_auto);
+	void update(epd_update_t update_type = k_update_auto);
+	void updateWithImage(const uint8_t * data, epd_image_format_t format, epd_update_t update_type = k_update_auto);
+	void updateWithCompressedImage(const uint8_t * data, epd_update_t update_type = k_update_auto);
 	void setTemperature(uint8_t temperature);
 	void freeBuffer();
 	~FancyEPD();
@@ -85,6 +86,13 @@ protected:
 	epd_image_format_t _bufferFormat;
 	uint8_t _updatesSinceRefresh;
 
+	/*
+	// Caching update types & timing to avoid unnecessary SPI.
+	// Is this truly necessary? Probably not :\
+	update_type _lastUpdateType;
+	uint8_t _lastUpdateTime0, _lastUpdateTime1;
+	*/
+
 	// Animation mode: Only redraw the pixels inside _window
 	bool _isAnimationMode;
 	window16 _window, _prevWindow;
@@ -92,6 +100,7 @@ protected:
 	void _waitUntilNotBusy();
 	void _softwareSPI(uint8_t data);
 	void _sendData(uint8_t index, uint8_t * data, uint16_t len);
+	void _sendImageLayer(uint8_t duration, uint8_t newBorderBit);
 
 	void _screenWillUpdate(epd_update_t update_type);
 
@@ -101,7 +110,7 @@ protected:
 	void _sendGateDrivingVoltage();
 	void _sendAnalogMode();
 	void _sendTemperatureSensor();
-	void _sendWaveforms(epd_update_t update_type);
+	void _sendWaveforms(epd_update_t update_type, int16_t time_0 = -1, int16_t time_1 = -1);
 	void _sendBorderBit(epd_update_t update_type, uint8_t newBit);
 	void _sendImageData();
 	void _sendUpdateActivation(epd_update_t update_type);

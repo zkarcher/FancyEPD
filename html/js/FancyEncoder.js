@@ -26,8 +26,12 @@ function FancyEncoder(canvas, format, compression)
 		ar.push(0x2);
 		ar.push(1);	// Currently always monochrome
 
-		// Image data header
+		// Canvas width & height
 		ar.push(0x3);
+		ar = ar.concat(VLQ([canvas.width, canvas.height], 8));
+
+		// Image data header
+		ar.push(0x4);
 	}
 
 	function appendImageDataToArray(binImg) {
