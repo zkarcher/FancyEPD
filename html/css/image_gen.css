@@ -3,7 +3,7 @@ body {
 	margin: 5pt 20pt;
 }
 
-p,h1,h2,h3,h4,h5,h6,label {
+p,h1,h2,h3,h4,h5,h6,label,td {
 	color: #fff4eb;
 	margin-top: 1.2em;
 	margin-bottom: 0.2em;
@@ -77,4 +77,16 @@ a {
 	padding: 20px;
 	font-family: monospace;
 	color: #0f0;
+}
+
+#compressionInfo {
+	border-width: 0;
+	background-color: rgba(255,255,255,0.3);
+	white-space: nowrap;
+	text-align: right;
+	padding: 1px 6px;
+}
+
+#compressionInfo tr:second-child {
+	font-weight: bold;
 }

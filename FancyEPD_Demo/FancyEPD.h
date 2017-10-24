@@ -69,6 +69,7 @@ public:
 	void setBorderColor(uint8_t color);
 	void updateScreen(epd_update_t update_type = k_update_auto);
 	void updateScreenWithImage(const uint8_t * data, epd_image_format_t format, epd_update_t update_type = k_update_auto);
+	void updateScreenWithCompressedImage(const uint8_t * data, epd_update_t update_type = k_update_auto);
 	void setTemperature(uint8_t temperature);
 	void freeBuffer();
 	~FancyEPD();

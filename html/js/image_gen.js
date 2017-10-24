@@ -13,9 +13,9 @@ $(document).ready(function(){
 	};
 
 	const PALETTES = {
-		"1bit": {name:"1-bit (black and white)"},
-		"2bit_mono": {name:"2-bit grayscale"},
-		"4bit_mono": {name:"4-bit grayscale"},
+		"1bpp_mono": {name:"1bpp (black and white)"},
+		"2bpp_mono": {name:"2bpp grayscale"},
+		"4bpp_mono": {name:"4bpp grayscale"},
 	};
 
 	_.each(Object.keys(SCREENS), function(key){
@@ -52,7 +52,6 @@ $(document).ready(function(){
 	}
 
 	function getOrientation() {
-		console.log("it's", $("input[name=orientation]:checked").val());
 		return $("input[name=orientation]:checked").val();
 	}
 
@@ -101,9 +100,9 @@ $(document).ready(function(){
 		// Brightness values will be rounded off to nearest
 		// palette color (4 bits == 16 colors, etc.)
 		var lum_steps = 255;
-		if (pal === "1bit") lum_steps = 2;
-		if (pal === "2bit_mono") lum_steps = 4;
-		if (pal === "4bit_mono") lum_steps = 16;
+		if (pal === "1bpp_mono") lum_steps = 2;
+		if (pal === "2bpp_mono") lum_steps = 4;
+		if (pal === "4bpp_mono") lum_steps = 16;
 
 		var imgData = ctx.getImageData(0, 0, w, h);
 		var data = imgData.data;
@@ -132,13 +131,23 @@ $(document).ready(function(){
 		ctx.putImageData(imgData, 0, 0);
 
 		// Print the C code
-		var format;
-		if (pal === "1bit") format = "1bpp_monochrome_raw";
-		if (pal === "2bit_mono") format = "2bpp_monochrome_raw";
-		if (pal === "4bit_mono") format = "4bpp_monochrome_raw";
+		var format = pal;
 
 		// Encode the image as uint8_t array
-		var encoder = new FancyEncoder(canvas, format);
+		var compression = $("#compression").is(":checked") ? 1 : 0;
+		var encoder = new FancyEncoder(canvas, format, compression);
+
+		var rawEncoder;
+		if (compression) {
+			rawEncoder = new FancyEncoder(canvas, format, false);
+
+			var comprSize = encoder.byteCount;
+			var rawSize = rawEncoder.byteCount;
+
+			$("#rawBytes").text(rawSize);
+			$("#compressedBytes").text(comprSize);
+			$("#savedBytes").text(rawSize - comprSize);
+		}
 
 		// Share the code block
 		var code = "static const uint8_t " + file_name + "[] = {\n";
@@ -148,15 +157,26 @@ $(document).ready(function(){
 
 		// Usage example
 		var palette_enum = "k_image_none";
-		if (pal === "1bit") palette_enum = "k_image_1bit";
-		if (pal === "2bit_mono") palette_enum = "k_image_2bit_monochrome";
-		if (pal === "4bit_mono") palette_enum = "k_image_4bit_monochrome";
+		if (pal === "1bpp_mono") palette_enum = "k_image_1bit";
+		if (pal === "2bpp_mono") palette_enum = "k_image_2bit_monochrome";
+		if (pal === "4bpp_mono") palette_enum = "k_image_4bit_monochrome";
 
-		var usage = "epd.updateScreenWithImage( " + file_name + ", " + palette_enum + " );"
+		var usage = "";
+		if (!compression) {
+			usage = "epd.updateScreenWithImage( " + file_name + ", " + palette_enum + " );"
+
+		} else {
+			usage = "epd.updateScreenWithCompressedImage( " + file_name + " );"
+		}
+
 		$("#usage_example").text(usage);
 
 		$("#codeSuccess").show();
+
 		$("#copy_result").text("");
+
+		// Show/hide #compressionInfo
+		$("#stats").toggle(compression ? true : false);
 	}
 
 	function copyCodeToClipboard() {
@@ -185,6 +205,7 @@ $(document).ready(function(){
 	$("screen").on("change", resizeDropzone);
 	$("input[name=orientation]").on("change", resizeDropzone);
 	$("#palette").on("change", redrawImage);
+	$("#compression").on("change", redrawImage);
 	$("#copy_to_clipboard").on("click", copyCodeToClipboard);
 
 	// Init

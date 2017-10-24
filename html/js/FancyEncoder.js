@@ -1,162 +1,95 @@
-function FancyEncoder(canvas, format)
+
+
+function FancyEncoder(canvas, format, compression)
 {
 	var self = this;
 	self.output = null;
+	self.byteCount = 0;
+
+	// "4bpp_mono"  =>  4
+	var bpp = parseInt(format.substr(0,1));
 
 	var data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
 
 	var ar = [];
 
-	switch (format) {
-		case "8bpp_monochrome_raw":
-		{
-			// 8-bit color, 1 pixel per byte
-			for (var i = 0; i < data.length; i += 4) {
-				ar.push(0xff - data[i]);
-			}
-		}
-		break;
+	// Image header (for compression)
+	if (compression) {
+		// Version
+		ar.push(0x1);
 
-		case "4bpp_monochrome_raw":
-		{
-			// 4-bit color, 2 pixels per byte
-			for (var i = 0; i < data.length; i += 8) {
-				var byte = (data[i] & 0xf0) | ((data[i + 4] & 0xf0) >> 4);
-				byte = 0xff - byte;
-				ar.push(byte);
-			}
-		}
-		break;
+		// BPP of image
+		ar.push(0x1);
+		ar.push(bpp);
 
-		case "2bpp_monochrome_raw":
-		{
-			// 2-bit color, 4 pixels per byte
-			for (var i = 0; i < data.length; i += 16) {
-				var byte = (data[i] & 0xc0) | ((data[i + 4] & 0xc0) >> 2) | ((data[i + 8] & 0xc0) >> 4) | ((data[i + 12] & 0xc0) >> 6);
-				byte = 0xff - byte;
-				ar.push(byte);
-			}
-		}
-		break;
+		// Color channels per pixel
+		ar.push(0x2);
+		ar.push(1);	// Currently always monochrome
 
-		case "1bpp_monochrome_raw":
-		{
-			// 1-bit color, 8 pixels per byte
-			for (var i = 0; i < data.length; i += 32) {
-				var byte = ((data[i     ] & 0x80)     ) |
-				           ((data[i +  4] & 0x80) >> 1) |
-				           ((data[i +  8] & 0x80) >> 2) |
-				           ((data[i + 12] & 0x80) >> 3) |
-				           ((data[i + 16] & 0x80) >> 4) |
-				           ((data[i + 20] & 0x80) >> 5) |
-				           ((data[i + 24] & 0x80) >> 6) |
-				           ((data[i + 28] & 0x80) >> 7);
-				byte = 0xff - byte;
-				ar.push(byte);
-			}
-		}
-		break;
+		// Image data header
+		ar.push(0x3);
+	}
 
-		case "1bpp_monochrome_rle_vlq":
-		{
-			var binImg = BinaryImage(canvas, 0x10);
+	function appendImageDataToArray(binImg) {
+		if (!compression) {
+			var bitstream = new Bitstream();
+			for (var i = 0; i < binImg.length; i++) {
+				bitstream.append(binImg[i], 1);
+			}
+			var data = bitstream.finish(0x0);
+
+			ar = ar.concat(data);
+
+		} else {	// Apply compression
+			// 0x0: raw
+			var bitstream = new Bitstream();
+			for (var i = 0; i < binImg.length; i++) {
+				bitstream.append(binImg[i], 1);
+			}
+			var rawData = bitstream.finish(0x0);
+			rawData.unshift(0x0);	// Prepend compression format
+
+			// 0x1: RLE
 			var rle = RLE(binImg);
-			var vlq = VLQ(rle, 2);	// 2: black, and white.
+			var rleData = VLQ(rle);	// 2 px types: black, white
+			rleData.unshift(0x1);	// Prepend compression format
 
-			ar = vlq;
+			// 0x2: RLE_XOR
+			// Bitstream: RLE runs, same vs XOR pixels.
+			// Store the deltas using VLQ.
+			var rleXor = RLE_XOR(binImg, canvas.width);
+			var xorData = VLQ(rleXor);	// 2 px types: same as above, XOR of above.
+			xorData.unshift(0x2);	// Compression format
+
+			// Choose the smallest data
+			var bestData = null;
+			_.each([rawData, rleData, xorData], function(data){
+				if (!bestData || (data.length < bestData.length)) {
+					bestData = data;
+				}
+			});
+
+			// Prepend data length
+			var len = bestData.length;
+			bestData = VLQ([len], 8).concat(bestData);
+
+			ar = ar.concat(bestData);
 		}
-		break;
+	}
 
-		case "1bpp_monochrome_rle_xor_vlq":
+	switch (format) {
+		case "8bpp_mono":
+		case "4bpp_mono":
+		case "2bpp_mono":
+		case "1bpp_mono":
 		{
-			var binImg = BinaryImage(canvas, 0x80);
-
-			// XOR version of the image. Pixels are XOR'd
-			// compared to the pixel directly above them.
-			var w = canvas.width;
-			var h = canvas.height;
-			var xorImg = [];
-
-			// First row is identical
-			for (var i = 0; i < w; i++) {
-				xorImg.push(binImg[i]);
+			// These can all be handled similarly: Start with the
+			// least-significant channel. Store this either raw,
+			// or (if user specified) compressed.
+			for (var i = bpp - 1; i >= 0; i--) {
+				var binImg = BinaryImage(canvas, 0x80 >> i, {invert:true});
+				appendImageDataToArray(binImg);
 			}
-
-			var offset = w;
-			for (var j = 1; j < h; j++) {
-				for (var i = 0; i < w; i++) {
-					var isSame = (binImg[offset] == binImg[offset - w]);
-					xorImg.push(isSame ? 0 : 1);
-					offset++;
-				}
-			}
-
-			var rle = RLE(xorImg);
-			console.log(rle);
-			var vlq = VLQ(rle, 2);	// 2: same, and xor.
-
-			ar = vlq;
-		}
-		break;
-
-		case "1bpp_monochrome_terrain_vlq":
-		{
-			var binImg = BinaryImage(canvas, 0x10);
-			var terr = new TerrainEncoding(binImg, canvas.width);
-
-			// Make a VLQ array
-			var data = [];
-			var slope = 0;
-			var distance = 0;
-			for (var i = 0; i < terr.length; i++) {
-				var step = terr[i];
-
-				// Differences
-				var slopeDiff = wrap(step.slope - slope, 256);
-				if (slopeDiff >= 128) {
-					slopeDiff -= 256;
-				}
-				data.push(slopeDiff);
-
-				var stepDiff = step.distance - distance;
-				data.push(stepDiff);
-
-				/*
-				var slope = step.slope;
-				if (slope >= 128) slope -= 256;
-				data.push(slope);
-				data.push(step.distance);
-				*/
-			}
-
-			console.log("data", data);
-
-			var vlq = VLQ(data, 2);
-			ar = vlq;
-
-			// Debug: Show bin img
-			var cvs = document.createElement('canvas');
-			cvs.width = canvas.width;
-			cvs.height = canvas.height;
-
-			var ctx = cvs.getContext('2d');
-			var data = ctx.getImageData(0, 0, cvs.width, cvs.height).data;
-
-			var d = 0;
-			for (var y = 0; y < cvs.height; y++) {
-				for (var x = 0; x < cvs.width; x++) {
-					data[d] = data[d + 1] = data[d + 2] = (binImg[d / 4] ? 0xff : 0x0);	// red, green, blue
-					data[d + 3] = 0xff;	// alpha
-
-					d += 4;
-				}
-			}
-
-			var imgData = new ImageData(data, cvs.width, cvs.height);
-
-			ctx.putImageData(imgData, 0, 0, 0, 0, cvs.width, cvs.height);
-
-			document.body.appendChild(cvs);
 		}
 		break;
 
@@ -169,6 +102,8 @@ function FancyEncoder(canvas, format)
 	}
 
 	//console.log(format, ":: LENGTH:", ar.length);
+
+	self.byteCount = ar.length;
 
 	var out = "";
 	while (ar.length) {
@@ -186,5 +121,4 @@ function FancyEncoder(canvas, format)
 	//console.log(out);
 
 	self.output = out;
-
 }

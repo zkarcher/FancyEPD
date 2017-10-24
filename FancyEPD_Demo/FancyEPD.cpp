@@ -348,6 +348,11 @@ void FancyEPD::updateScreenWithImage(const uint8_t * data, epd_image_format_t fo
 	_updatesSinceRefresh = 0xFF;
 }
 
+void updateScreenWithCompressedImage(const uint8_t * data, epd_update_t update_type = k_update_auto)
+{
+	// FIXME ZKA
+}
+
 void FancyEPD::setTemperature(uint8_t temperature)
 {
 	// TODO: Temperature is a 12-bit value, so we're
