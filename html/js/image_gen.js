@@ -146,7 +146,7 @@ $(document).ready(function(){
 
 			$("#rawBytes").text(rawSize);
 			$("#compressedBytes").text(comprSize);
-			$("#savedBytes").text(rawSize - comprSize);
+			$("#compressedPercent").text("(" + Math.round((comprSize / rawSize) * 100.0) + "% of original)");
 		}
 
 		// Share the code block

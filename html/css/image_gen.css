@@ -90,3 +90,7 @@ a {
 #compressionInfo tr:second-child {
 	font-weight: bold;
 }
+
+#compressedPercent {
+	opacity: 0.6;
+}
