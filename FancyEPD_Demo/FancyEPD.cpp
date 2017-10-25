@@ -418,14 +418,17 @@ uint16_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t 
 			vlq_decoder rle = (vlq_decoder){.data = &read[1], .mask = 0x80, .word_size = *read};
 
 			int16_t x = 0, y = 0;
-			while (y < _height) {
+			while (y < height) {
 				uint32_t run = _vlqDecode(&rle);
 
 				while (run--) {
 					if (isOn) drawPixel(x, y, 0xff);
 
 					x++;
-					if (x >= _width) y++;
+					if (x >= width) {
+						x = 0;
+						y++;
+					}
 				}
 
 				isOn = !isOn;
@@ -433,6 +436,7 @@ uint16_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t 
 
 		} else if (cmpr == 2) {	// RLE, same vs XOR
 			// FIXME ZKA
+			return 9;
 		}
 
 		// Update screen

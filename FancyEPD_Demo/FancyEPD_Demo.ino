@@ -37,12 +37,12 @@ void loop_compression_test() {
 
 	uint16_t err = epd.updateWithCompressedImage(angel);
 
-	/*
-	String str = "err: " + String(err);
-	drawLabel(str);
-	epd.update();
-	*/
-
+	if (err) {
+		String str = "err: " + String(err);
+		drawLabel(str);
+		epd.update();
+	}
+	
 	delay(DELAY_BETWEEN_IMAGES_MS);
 }
 
