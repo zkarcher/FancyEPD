@@ -2,6 +2,7 @@
 #include <Adafruit_GFX.h>
 #include "FancyEPD.h"
 //#include "FancyEPD_Demo_images.h"
+#include "compression_test.h"
 
 #define DELAY_BETWEEN_IMAGES_MS       (6 * 1000)
 #define DO_ROTATION                   (true)
@@ -26,6 +27,15 @@ void loop() {
 	loop_boxes();
 	//loop_anim();
 	//loop_images();
+
+	//loop_compression_test();
+}
+
+void loop_compression_test() {
+	epd.setRotation(0);
+	epd.setBorderColor(0xff);	// black
+	epd.updateWithCompressedImage(angel);
+	delay(DELAY_BETWEEN_IMAGES_MS);
 }
 
 int8_t drawsUntilModeSwitch = 0;

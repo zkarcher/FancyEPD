@@ -56,7 +56,7 @@ FancyEPD::FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uin
 	_isAnimationMode = false;
 	markDisplayDirty();
 	_prevWindow = _window;
-	_lastUpdateType = k_update_none;
+	//_lastUpdateType = k_update_none;
 }
 
 bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
@@ -333,9 +333,112 @@ void FancyEPD::updateWithImage(const uint8_t * data, epd_image_format_t format, 
 	_updatesSinceRefresh = 0xFF;
 }
 
-void updateWithCompressedImage(const uint8_t * data, epd_update_t update_type = k_update_auto)
+void FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t update_type)
 {
-	// FIXME ZKA
+	uint8_t version = *data;
+	data++;
+
+	if (version != 1) {
+		// Invalid version
+		return;
+	}
+
+	// Read header
+	uint8_t bpc = 0;	// bits per channel
+	uint8_t channels = 0;
+	int16_t width = 0;
+	int16_t height = 0;
+	const uint8_t * img_data = NULL;
+
+	vlq_decoder decode_bytes = (vlq_decoder){.data = NULL, .mask = 0x80, .word_size = 8};
+
+	// Read header. Fail after 10 reads and no img_data.
+	for (uint8_t i = 0; i < 10; i++) {
+
+		if ((*data) == 0x1) {	// Bits per channel
+			bpc = data[1];
+			data += 2;
+
+		} else if ((*data) == 0x2) {	// Color channels
+			// (monochrome == 1, black+red == 2)
+			channels = data[1];
+			data += 2;
+
+		} else if ((*data) == 0x3) {	// width, height
+			decode_bytes.data = &data[1];
+			width = (int16_t)(_vlqDecode(&decode_bytes));
+			height = (int16_t)(_vlqDecode(&decode_bytes));
+			data = decode_bytes.data;
+
+		} else if ((*data) == 0x4) {	// img_data starts here
+			img_data = data;
+			break;
+
+		} else {
+			// Unknown header command! Fail.
+			return;
+		}
+
+	}
+
+	// Bail on garbage data
+	if ((bpc == 0) || (bpc > 4)) return;
+	if (channels != 1) return;
+	if (width <= 0) return;
+	if (height <= 0) return;
+	if (!img_data) return;
+
+	// Decode & send each layer of image data
+	const uint8_t * layer_start = img_data;
+
+	for (uint8_t layer = 0; layer < bpc; layer++) {
+		markDisplayClean();
+
+		decode_bytes.data = layer_start;
+		uint16_t sz = (uint16_t)(_vlqDecode(&decode_bytes));
+
+		const uint8_t * read = decode_bytes.data;
+		uint8_t cmpr = *read;
+		read++;
+
+		// Compression: must be a known format
+		if (cmpr > 0x2) return;
+
+		if (cmpr == 0) {	// raw, not compressed
+			// Just memcpy the image
+			memcpy(_buffer, read, (width * height) >> 3);
+
+		} else if (cmpr == 1) {	// RLE, white vs black
+			clearBuffer(0x0);
+			bool isOn = false;
+
+			vlq_decoder rle = (vlq_decoder){.data = &read[1], .mask = 0x80, .word_size = *read};
+
+			int16_t x = 0, y = 0;
+			while (y < _height) {
+				uint32_t run = _vlqDecode(&rle);
+
+				while (run--) {
+					if (isOn) drawPixel(x, y, 0xff);
+
+					x++;
+					if (x >= _width) y++;
+				}
+
+				isOn = !isOn;
+			}
+
+		} else if (cmpr == 2) {	// RLE, same vs XOR
+			// FIXME ZKA
+		}
+
+		// Update screen
+		uint8_t border_mask = (0x80 >> (bpc - 1)) << layer;
+		_sendImageLayer(layer, bpc, (_borderColor & border_mask));
+
+		// Advance to next layer
+		layer_start = &layer_start[sz];
+	}
 }
 
 void FancyEPD::setTemperature(uint8_t temperature)
@@ -723,4 +826,8 @@ void FancyEPD::_swapBufferBytes(int16_t xMinByte, int16_t yMin, int16_t xMaxByte
 			}
 		}
 	}
+}
+
+uint32_t FancyEPD::_vlqDecode(vlq_decoder * decoder) {
+
 }

@@ -67,7 +67,7 @@ function FancyEncoder(canvas, format, compression)
 
 			// Choose the smallest data
 			var bestData = null;
-			_.each([rawData, rleData, xorData], function(data){
+			_.each([rawData/*, rleData, xorData*/], function(data){
 				if (!bestData || (data.length < bestData.length)) {
 					bestData = data;
 				}

@@ -55,6 +55,12 @@ typedef struct {
 	int16_t yMax;
 } window16;
 
+typedef struct {
+	const uint8_t * data;
+	uint8_t mask;	// Start at MSB (0x80), shift right towards LSB (0x00)
+	uint8_t word_size;
+} vlq_decoder;
+
 class FancyEPD : public Adafruit_GFX {
 public:
 	FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uint32_t bs, uint32_t d0 = 0xffff, uint32_t d1 = 0xffff);
@@ -100,7 +106,7 @@ protected:
 	void _waitUntilNotBusy();
 	void _softwareSPI(uint8_t data);
 	void _sendData(uint8_t index, uint8_t * data, uint16_t len);
-	void _sendImageLayer(uint8_t duration, uint8_t newBorderBit);
+	void _sendImageLayer(uint8_t layer_num, uint8_t layer_count, uint8_t newBorderBit);
 
 	void _screenWillUpdate(epd_update_t update_type);
 
@@ -117,6 +123,8 @@ protected:
 	void _sendWindow();
 
 	void _swapBufferBytes(int16_t xMinByte, int16_t yMin, int16_t xMaxByte, int16_t yMax, bool ascending);
+
+	uint32_t _vlqDecode(vlq_decoder * decoder);
 };
 
 #endif

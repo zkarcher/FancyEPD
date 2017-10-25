@@ -163,10 +163,10 @@ $(document).ready(function(){
 
 		var usage = "";
 		if (!compression) {
-			usage = "epd.updateWithImage( " + file_name + ", " + palette_enum + " );"
+			usage = "epd.updateWithImage(" + file_name + ", " + palette_enum + ");"
 
 		} else {
-			usage = "epd.updateWithCompressedImage( " + file_name + " );"
+			usage = "epd.updateWithCompressedImage(" + file_name + ");"
 		}
 
 		$("#usage_example").text(usage);
