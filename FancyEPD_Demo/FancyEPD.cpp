@@ -133,21 +133,23 @@ void FancyEPD::setAnimationMode(bool isOn)
 // send the entire _buffer to the EPD. (It's slower.)
 void FancyEPD::markDisplayDirty()
 {
+	int16_t xMax = (int16_t)(WIDTH - 1);
+	int16_t yMax = (int16_t)(HEIGHT - 1);
+
 	_window = (window16){
-		.xMin = 0,
-		.yMin = 0,
-		.xMax = WIDTH - 1,
-		.yMax = HEIGHT - 1
+		.xMin = 0, .yMin = 0,
+		.xMax = xMax, .yMax = yMax
 	};
 }
 
 void FancyEPD::markDisplayClean()
 {
+	int16_t xMin = (int16_t)(WIDTH - 1);
+	int16_t yMin = (int16_t)(HEIGHT - 1);
+
 	_window = (window16){
-		.xMin = WIDTH - 1,
-		.yMin = HEIGHT - 1,
-		.xMax = 0,
-		.yMax = 0
+		.xMin = xMin, .yMin = yMin,
+		.xMax = 0, .yMax = 0
 	};
 }
 
@@ -828,6 +830,41 @@ void FancyEPD::_swapBufferBytes(int16_t xMinByte, int16_t yMin, int16_t xMaxByte
 	}
 }
 
+// Simple state machine: Pull bits from ->data,
+// in ->word_size chunks. The leading bit indicates
+// whether the value continues in subsequent words;
+// otherwise this is the final word in the value.
 uint32_t FancyEPD::_vlqDecode(vlq_decoder * decoder) {
+	uint32_t out = 0;
+	bool doesContinue = false;
 
+	for (uint8_t zz = 0; zz < 20; zz++) {	// safer than while()?
+
+		for (uint8_t r = 0; r < decoder->word_size; r++) {
+			uint8_t bit = ((*decoder->data) & decoder->mask) ? 1 : 0;
+
+			// First bit: Sets whether word continues
+			if (r == 0) {
+				doesContinue = (bool)(bit);
+
+			} else {
+				// Shift this bit onto the right-hand side of value.
+				out = (out << 1) | bit;
+			}
+
+			// Move the decoder mask to the next bit, advancing
+			// to the next byte if needed.
+			if (decoder->mask == 0x1) {	// Final bit?
+				decoder->data++;	// Next byte
+				decoder->mask = 0x80;	// Reset mask
+
+			} else {
+				decoder->mask = (decoder->mask >> 1);
+			}
+		}
+
+		if (!doesContinue) break;
+	}
+
+	return out;
 }

@@ -24,11 +24,11 @@ void setup() {
 }
 
 void loop() {
-	loop_boxes();
+	//loop_boxes();
 	//loop_anim();
 	//loop_images();
 
-	//loop_compression_test();
+	loop_compression_test();
 }
 
 void loop_compression_test() {
