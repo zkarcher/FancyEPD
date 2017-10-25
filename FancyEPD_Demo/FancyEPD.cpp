@@ -335,14 +335,14 @@ void FancyEPD::updateWithImage(const uint8_t * data, epd_image_format_t format, 
 	_updatesSinceRefresh = 0xFF;
 }
 
-void FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t update_type)
+uint16_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t update_type)
 {
 	uint8_t version = *data;
 	data++;
 
 	if (version != 1) {
 		// Invalid version
-		return;
+		return 1;
 	}
 
 	// Read header
@@ -373,22 +373,22 @@ void FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t upda
 			data = decode_bytes.data;
 
 		} else if ((*data) == 0x4) {	// img_data starts here
-			img_data = data;
+			img_data = &data[1];
 			break;
 
 		} else {
 			// Unknown header command! Fail.
-			return;
+			return 2;
 		}
 
 	}
 
 	// Bail on garbage data
-	if ((bpc == 0) || (bpc > 4)) return;
-	if (channels != 1) return;
-	if (width <= 0) return;
-	if (height <= 0) return;
-	if (!img_data) return;
+	if ((bpc == 0) || (bpc > 4)) return 3;
+	if (channels != 1) return 4;
+	if (width <= 0) return 5;
+	if (height <= 0) return 6;
+	if (!img_data) return 7;
 
 	// Decode & send each layer of image data
 	const uint8_t * layer_start = img_data;
@@ -399,12 +399,13 @@ void FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t upda
 		decode_bytes.data = layer_start;
 		uint16_t sz = (uint16_t)(_vlqDecode(&decode_bytes));
 
-		const uint8_t * read = decode_bytes.data;
+		const uint8_t * img_data_start = decode_bytes.data;
+		const uint8_t * read = img_data_start;
 		uint8_t cmpr = *read;
 		read++;
 
 		// Compression: must be a known format
-		if (cmpr > 0x2) return;
+		if (cmpr > 0x2) return 8;
 
 		if (cmpr == 0) {	// raw, not compressed
 			// Just memcpy the image
@@ -439,8 +440,10 @@ void FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t upda
 		_sendImageLayer(layer, bpc, (_borderColor & border_mask));
 
 		// Advance to next layer
-		layer_start = &layer_start[sz];
+		layer_start = &img_data_start[sz];
 	}
+
+	return 0;
 }
 
 void FancyEPD::setTemperature(uint8_t temperature)

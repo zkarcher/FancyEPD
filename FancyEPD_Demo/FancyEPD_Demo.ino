@@ -34,7 +34,15 @@ void loop() {
 void loop_compression_test() {
 	epd.setRotation(0);
 	epd.setBorderColor(0xff);	// black
-	epd.updateWithCompressedImage(angel);
+
+	uint16_t err = epd.updateWithCompressedImage(angel);
+
+	/*
+	String str = "err: " + String(err);
+	drawLabel(str);
+	epd.update();
+	*/
+
 	delay(DELAY_BETWEEN_IMAGES_MS);
 }
 
