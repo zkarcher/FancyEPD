@@ -104,11 +104,11 @@ protected:
 	bool _isAnimationMode;
 	window16 _window, _prevWindow;
 
-	void _waitUntilNotBusy();
 	void _softwareSPI(uint8_t data);
 	void _sendData(uint8_t index, uint8_t * data, uint16_t len);
 	void _sendImageLayer(uint8_t layer_num, uint8_t layer_count, uint8_t newBorderBit);
 
+	void _willUpdateWithImage(epd_update_t update_type);
 	void _screenWillUpdate(epd_update_t update_type);
 
 	void _sendDriverOutput();
@@ -119,7 +119,7 @@ protected:
 	void _sendTemperatureSensor();
 	void _sendWaveforms(epd_update_t update_type, int16_t time_0 = -1, int16_t time_1 = -1);
 	void _sendBorderBit(epd_update_t update_type, uint8_t newBit);
-	void _sendImageData();
+	void _sendBufferData();
 	void _sendUpdateActivation(epd_update_t update_type);
 	void _sendWindow();
 

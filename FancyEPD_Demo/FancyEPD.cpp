@@ -198,9 +198,8 @@ void FancyEPD::update(epd_update_t update_type)
 		}
 	}
 
-	_waitUntilNotBusy();
 	_screenWillUpdate(update_type);
-	_sendImageData();
+	_sendBufferData();
 	_sendUpdateActivation(update_type);
 }
 
@@ -213,24 +212,7 @@ void FancyEPD::updateWithImage(const uint8_t * data, epd_image_format_t format, 
 		return;
 	}
 
-	if (update_type == k_update_auto) {
-		update_type = k_update_quick_refresh;
-	}
-
-	bool do_blink = (update_type == k_update_quick_refresh) || (update_type == k_update_builtin_refresh);
-
-	if (do_blink) {
-		_waitUntilNotBusy();
-		clearBuffer();
-		_screenWillUpdate(update_type);
-		_sendBorderBit(update_type, 0);	// white border
-		_sendImageData();
-		_sendUpdateActivation(update_type);
-
-	} else {
-		_waitUntilNotBusy();
-		_screenWillUpdate(k_update_none);	// Don't apply waveforms here
-	}
+	_willUpdateWithImage(update_type);
 
 	// Multiple draws will be required, for each bit.
 	switch(format) {
@@ -372,6 +354,8 @@ uint16_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t 
 	if (height <= 0) return 6;
 	if (!img_data) return 7;
 
+	_willUpdateWithImage(update_type);
+
 	// Decode & send each layer of image data
 	const uint8_t * layer_start = img_data;
 
@@ -478,12 +462,6 @@ FancyEPD::~FancyEPD()
 //  PRIVATE
 //
 
-void FancyEPD::_waitUntilNotBusy()
-{
-	// Ensure the busy pin is LOW
-	while (digitalRead(_bs) == HIGH);
-}
-
 void FancyEPD::_softwareSPI(uint8_t data) {
 	uint8_t mask = 0x80;
 
@@ -498,6 +476,9 @@ void FancyEPD::_softwareSPI(uint8_t data) {
 }
 
 void FancyEPD::_sendData(uint8_t command, uint8_t * data, uint16_t len) {
+	// Ensure the busy pin is LOW
+	while (digitalRead(_bs) == HIGH);
+
 	// 1s / 250ns clock cycle time == 4,000,000 Hz
 	if (_hardwareSPI) {
 		SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));
@@ -545,11 +526,30 @@ void FancyEPD::_sendImageLayer(uint8_t layer_num, uint8_t layer_count, uint8_t n
 	uint8_t timing = 3;
 	_sendWaveforms(draw_scheme, timing);
 
-	_waitUntilNotBusy();
 	_sendBorderBit(draw_scheme, (newBorderBit) ? 1 : 0);
 	_sendWindow();
-	_sendImageData();
+	_sendBufferData();
 	_sendUpdateActivation(draw_scheme);
+}
+
+void FancyEPD::_willUpdateWithImage(epd_update_t update_type)
+{
+	if (update_type == k_update_auto) {
+		update_type = k_update_quick_refresh;
+	}
+
+	bool do_blink = (update_type == k_update_quick_refresh) || (update_type == k_update_builtin_refresh);
+
+	if (do_blink) {
+		clearBuffer();
+		_screenWillUpdate(update_type);
+		_sendBorderBit(update_type, 0);	// white border
+		_sendBufferData();
+		_sendUpdateActivation(update_type);
+
+	} else {
+		_screenWillUpdate(k_update_none);	// Don't apply waveforms here
+	}
 }
 
 void FancyEPD::_screenWillUpdate(epd_update_t update_type)
@@ -619,7 +619,7 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, int16_t time_0, int16_t 
 	switch (update_type) {
 		case k_update_partial:
 		{
-			if (time_0 < 0) time_0 = 30;
+			if (time_0 < 0) time_0 = 20;
 
 			// Apply voltage only to pixels which change.
 			data[0] = waveformByte(_SOURCE, _LOW, _HIGH, _SOURCE);
@@ -642,7 +642,7 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, int16_t time_0, int16_t 
 		case k_update_quick_refresh:
 		{
 			if (time_0 < 0) time_0 = 12;
-			if (time_1 < 0) time_1 = 30;
+			if (time_1 < 0) time_1 = 20;
 
 			data[0] = waveformByte(_LOW, _HIGH, _LOW, _HIGH);	// inverted image
 			data[1] = waveformByte(_HIGH, _LOW, _HIGH, _LOW);	// normal image
@@ -705,7 +705,7 @@ void FancyEPD::_sendBorderBit(epd_update_t update_type, uint8_t newBit)
 	_borderBit = newBit;
 }
 
-void FancyEPD::_sendImageData()
+void FancyEPD::_sendBufferData()
 {
 	// To defeat double-buffering artifacts on the device:
 	// Send enough pixels to cover _prevWindow and _window.
