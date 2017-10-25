@@ -43,6 +43,7 @@ function RLE_XOR(ar, imgWidth)
 			run++;
 
 		} else {	// Pixel changed state. Store the run.
+			console.log("run:", isXor, run);
 			out.push(run);
 			runIsXor = isXor;
 			run = 1;	// Reset run count

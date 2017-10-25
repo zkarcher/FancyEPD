@@ -72,6 +72,7 @@ public:
 	void setAnimationMode(bool isOn);
 	void markDisplayDirty();
 	void markDisplayClean();
+	bool getPixel(int16_t x, int16_t y);
 	void drawPixel(int16_t x, int16_t y, uint16_t color);
 	void setBorderColor(uint8_t color);
 	void update(epd_update_t update_type = k_update_auto);
@@ -121,6 +122,8 @@ protected:
 	void _sendImageData();
 	void _sendUpdateActivation(epd_update_t update_type);
 	void _sendWindow();
+
+	void _applyRotationForBuffer(int16_t * x, int16_t * y);
 
 	void _swapBufferBytes(int16_t xMinByte, int16_t yMin, int16_t xMaxByte, int16_t yMax, bool ascending);
 

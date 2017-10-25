@@ -153,46 +153,28 @@ void FancyEPD::markDisplayClean()
 	};
 }
 
+bool FancyEPD::getPixel(int16_t x, int16_t y)
+{
+	_applyRotationForBuffer(&x, &y);
+
+	uint8_t *ptr = &_buffer[(x / 8) + y * ((WIDTH + 7) / 8)];
+
+	return (*ptr) & (0x80 >> (x & 0x7)) ? true : false;
+}
+
 // Override Adafruit_GFX basic function for setting pixels
 void FancyEPD::drawPixel(int16_t x, int16_t y, uint16_t color)
 {
 	if ((x < 0) || (y < 0) || (x >= _width) || (y >= _height)) return;
 
-	int16_t temp;
-	switch (getRotation()) {
-		case 1:
-		{
-			temp = x;
-			x = (WIDTH - 1) - y;
-			y = temp;
-		}
-		break;
-
-		case 2:
-		{
-			x = (WIDTH - 1) - x;
-			y = (HEIGHT - 1) - y;
-		}
-		break;
-
-		case 3:
-		{
-			temp = x;
-			x = y;
-			y = (HEIGHT - 1) - temp;
-		}
-		break;
-
-		default:
-			break;
-	}
+	_applyRotationForBuffer(&x, &y);
 
 	uint8_t *ptr = &_buffer[(x / 8) + y * ((WIDTH + 7) / 8)];
 
 	if (color) {
-		*ptr |= 0x80 >> (x & 7);
+		*ptr |= 0x80 >> (x & 0x7);
 	} else {
-		*ptr &= ~(0x80 >> (x & 7));
+		*ptr &= ~(0x80 >> (x & 0x7));
 	}
 
 	_window.xMin = min(x, _window.xMin);
@@ -411,32 +393,53 @@ uint16_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t 
 			// Just memcpy the image
 			memcpy(_buffer, read, (width * height) >> 3);
 
-		} else if (cmpr == 1) {	// RLE, white vs black
+		} else if ((cmpr == 1) || (cmpr == 2)) {	// RLE
 			clearBuffer(0x0);
 			bool isOn = false;
 
 			vlq_decoder rle = (vlq_decoder){.data = &read[1], .mask = 0x80, .word_size = *read};
 
 			int16_t x = 0, y = 0;
+
 			while (y < height) {
 				uint32_t run = _vlqDecode(&rle);
 
-				while (run--) {
-					if (isOn) drawPixel(x, y, 0xff);
+				if (cmpr == 1) {	// 0x1: RLE, white vs black
+					while (run--) {
+						if (isOn) drawPixel(x, y, 0xff);
 
-					x++;
-					if (x >= width) {
-						x = 0;
-						y++;
+						x++;
+						if (x >= width) {
+							x = 0;
+							y++;
+						}
+					}
+
+				} else {	// 0x2: RLE, same vs XOR
+					while (run--) {
+						if (y == 0) {
+							// First row: Draw black & white
+							if (isOn) drawPixel(x, y, 0xff);
+
+						} else {
+							// Subsequent rows: same or XOR of row above
+							bool pxAbove = getPixel(x, y - 1);
+							if (pxAbove != isOn) {
+								drawPixel(x, y, 0xff);
+							}
+						}
+
+						x++;
+						if (x >= width) {
+							x = 0;
+							y++;
+						}
+
 					}
 				}
 
 				isOn = !isOn;
 			}
-
-		} else if (cmpr == 2) {	// RLE, same vs XOR
-			// FIXME ZKA
-			return 9;
 		}
 
 		// Update screen
@@ -649,6 +652,15 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, int16_t time_0, int16_t 
 		}
 		break;
 
+		case k_update_INTERNAL_image_layer:
+		{
+			if (time_0 < 0) time_0 = 3;
+
+			data[0] = waveformByte(_HIGH, _LOW, _HIGH, _LOW);
+			data[16] = (uint8_t)(time_0);	// Short pulse
+		}
+		break;
+
 		case k_update_builtin_refresh:
 		default:
 		{
@@ -658,15 +670,6 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, int16_t time_0, int16_t 
 
 			return;
 		}
-
-		case k_update_INTERNAL_image_layer:
-		{
-			if (time_0 < 0) time_0 = 3;
-
-			data[0] = waveformByte(_HIGH, _LOW, _HIGH, _LOW);
-			data[16] = (uint8_t)(time_0);	// Short pulse
-		}
-		break;
 	}
 
 	_sendData(0x32, data, lut_size);
@@ -794,6 +797,37 @@ void FancyEPD::_sendWindow()
 	// XY counter
 	_sendData(0x4E, &data_x[0], 1);
 	_sendData(0x4F, &data_y[0], 1);
+}
+
+void FancyEPD::_applyRotationForBuffer(int16_t * x, int16_t * y)
+{
+	switch (getRotation()) {
+		case 1:
+		{
+			int16_t temp = *x;
+			*x = (WIDTH - 1) - *y;
+			*y = temp;
+		}
+		break;
+
+		case 2:
+		{
+			*x = (WIDTH - 1) - *x;
+			*y = (HEIGHT - 1) - *y;
+		}
+		break;
+
+		case 3:
+		{
+			int16_t temp = *x;
+			*x = *y;
+			*y = (HEIGHT - 1) - temp;
+		}
+		break;
+
+		default:
+			break;
+	}
 }
 
 // For streaming windowed region, without allocating another
