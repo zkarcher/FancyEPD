@@ -68,7 +68,7 @@ FancyEPD::FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uin
 
 	// Reset waveform timings
 	for (uint8_t i = 0; i < k_update_builtin_refresh; i++) {
-		restoreDefaultTiming(i);
+		restoreDefaultTiming((epd_update_t)i);
 	}
 
 	markDisplayDirty();
@@ -217,7 +217,7 @@ void FancyEPD::restoreDefaultTiming(epd_update_t update_type)
 	if (update_type >= k_update_builtin_refresh) return;
 
 	_timingNormal[update_type] = 20;
-	_timingInverse[update_Type] = 12;
+	_timingInverse[update_type] = 12;
 }
 
 void FancyEPD::update(epd_update_t update_type)
@@ -547,19 +547,6 @@ void FancyEPD::_sendData(uint8_t command, uint8_t * data, uint16_t len) {
 
 	if (_hardwareSPI) {
 		SPI.endTransaction();
-	}
-}
-
-void FancyEPD::_applyTiming(epd_update_t update_type, uint8_t * timing_normal, uint8_t * timing_inverse)
-{
-	if (update_type >= k_update_builtin_refresh) return;
-
-	if (*timing_normal == 0) {
-		*timing_normal = _timingNormal[update_type];
-	}
-
-	if (*timing_inverse == 0) {
-		*timing_inverse = _timingInverse[update_type];
 	}
 }
 
