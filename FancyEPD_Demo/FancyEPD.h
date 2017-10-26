@@ -34,8 +34,7 @@ typedef enum epd_update_t {
 	k_update_partial,
 
 	// Stronger than _partial. Best for general use.
-	k_update_no_blink_fast,	// faster, more ghosting
-	k_update_no_blink,	// slower, less ghosting
+	k_update_no_blink,
 
 	// Quick inverted->normal transition.
 	k_update_quick_refresh,
@@ -75,9 +74,19 @@ public:
 	bool getPixel(int16_t x, int16_t y);
 	void drawPixel(int16_t x, int16_t y, uint16_t color);
 	void setBorderColor(uint8_t color);
+
+	// Waveform timing for all update types, except ones which
+	// cannot be overriden, like:  k_update_builtin_refresh.
+	//
+	// Some updates have no inverted blink, and will ignore
+	// the time_inverse value.
+	void setCustomTiming(epd_update_t update_type, uint8_t time_normal = 0, uint8_t time_inverse = 0);
+	void restoreDefaultTiming(epd_update_t);
+
 	void update(epd_update_t update_type = k_update_auto);
 	void updateWithImage(const uint8_t * data, epd_image_format_t format, epd_update_t update_type = k_update_auto);
-	uint16_t updateWithCompressedImage(const uint8_t * data, epd_update_t update_type = k_update_auto);
+	uint8_t updateWithCompressedImage(const uint8_t * data, epd_update_t update_type = k_update_auto);
+
 	void setTemperature(uint8_t temperature);
 	void freeBuffer();
 	~FancyEPD();
@@ -93,19 +102,18 @@ protected:
 	epd_image_format_t _bufferFormat;
 	uint8_t _updatesSinceRefresh;
 
-	/*
-	// Caching update types & timing to avoid unnecessary SPI.
-	// Is this truly necessary? Probably not :\
-	update_type _lastUpdateType;
-	uint8_t _lastUpdateTime0, _lastUpdateTime1;
-	*/
-
 	// Animation mode: Only redraw the pixels inside _window
 	bool _isAnimationMode;
 	window16 _window, _prevWindow;
 
+	uint8_t _timingNormal[(uint8_t)k_update_builtin_refresh];
+	uint8_t _timingInverse[(uint8_t)k_update_builtin_refresh];
+
 	void _softwareSPI(uint8_t data);
 	void _sendData(uint8_t index, uint8_t * data, uint16_t len);
+
+	void _applyCustomTiming(epd_update_t update_type, uint8_t * timing_normal, uint8_t * timing_inverse);
+
 	void _sendImageLayer(uint8_t layer_num, uint8_t layer_count, uint8_t newBorderBit);
 
 	void _willUpdateWithImage(epd_update_t update_type);
@@ -117,7 +125,7 @@ protected:
 	void _sendGateDrivingVoltage();
 	void _sendAnalogMode();
 	void _sendTemperatureSensor();
-	void _sendWaveforms(epd_update_t update_type, int16_t time_0 = -1, int16_t time_1 = -1);
+	void _sendWaveforms(epd_update_t update_type, uint8_t time_normal = 0, uint8_t time_inverse = 0);
 	void _sendBorderBit(epd_update_t update_type, uint8_t newBit);
 	void _sendBufferData();
 	void _sendUpdateActivation(epd_update_t update_type);

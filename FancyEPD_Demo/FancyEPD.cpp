@@ -3,7 +3,18 @@
 #include "Adafruit_GFX.h"
 #include "FancyEPD.h"
 
-#define AUTO_REFRESH_AFTER_UPDATES   (5)
+#define AUTO_REFRESH_AFTER_UPDATES        (5)
+
+// Dev: error codes for: updateWithCompressedImage()
+#define NO_ERROR                          (0)
+#define ERROR_INVALID_VERSION             (1)
+#define ERROR_UNKNOWN_HEADER_PROPERTY     (2)
+#define ERROR_BPC_NOT_SUPPORTED           (3)
+#define ERROR_CHANNELS_NOT_SUPPORTED      (4)
+#define ERROR_INVALID_WIDTH               (5)
+#define ERROR_INVALID_HEIGHT              (6)
+#define ERROR_IMAGE_DATA_NOT_FOUND        (7)
+#define ERROR_UNKNOWN_COMPRESSION_FORMAT  (8)
 
 static int16_t _modelWidth(epd_model_t model)
 {
@@ -54,9 +65,14 @@ FancyEPD::FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uin
 	_borderBit = 0x0;
 	_updatesSinceRefresh = 0xFF;
 	_isAnimationMode = false;
+
+	// Reset waveform timings
+	for (uint8_t i = 0; i < k_update_builtin_refresh; i++) {
+		restoreDefaultTiming(i);
+	}
+
 	markDisplayDirty();
 	_prevWindow = _window;
-	//_lastUpdateType = k_update_none;
 }
 
 bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
@@ -188,6 +204,22 @@ void FancyEPD::setBorderColor(uint8_t color)
 	_borderColor = color;
 }
 
+void FancyEPD::setCustomTiming(epd_update_t update_type, uint8_t time_normal, uint8_t time_inverse)
+{
+	if (update_type >= k_update_builtin_refresh) return;
+
+	_timingNormal[update_type] = time_normal;
+	_timingInverse[update_type] = time_inverse;
+}
+
+void FancyEPD::restoreDefaultTiming(epd_update_t update_type)
+{
+	if (update_type >= k_update_builtin_refresh) return;
+
+	_timingNormal[update_type] = 20;
+	_timingInverse[update_Type] = 12;
+}
+
 void FancyEPD::update(epd_update_t update_type)
 {
 	if (update_type == k_update_auto) {
@@ -299,14 +331,14 @@ void FancyEPD::updateWithImage(const uint8_t * data, epd_image_format_t format, 
 	_updatesSinceRefresh = 0xFF;
 }
 
-uint16_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t update_type)
+uint8_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t update_type)
 {
 	uint8_t version = *data;
 	data++;
 
 	if (version != 1) {
 		// Invalid version
-		return 1;
+		return ERROR_INVALID_VERSION;
 	}
 
 	// Read header
@@ -342,17 +374,17 @@ uint16_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t 
 
 		} else {
 			// Unknown header command! Fail.
-			return 2;
+			return ERROR_UNKNOWN_HEADER_PROPERTY;
 		}
 
 	}
 
 	// Bail on garbage data
-	if ((bpc == 0) || (bpc > 4)) return 3;
-	if (channels != 1) return 4;
-	if (width <= 0) return 5;
-	if (height <= 0) return 6;
-	if (!img_data) return 7;
+	if ((bpc == 0) || (bpc > 4)) return ERROR_BPC_NOT_SUPPORTED;
+	if (channels != 1) return ERROR_CHANNELS_NOT_SUPPORTED;
+	if (width <= 0) return ERROR_INVALID_WIDTH;
+	if (height <= 0) return ERROR_INVALID_HEIGHT;
+	if (!img_data) return ERROR_IMAGE_DATA_NOT_FOUND;
 
 	_willUpdateWithImage(update_type);
 
@@ -371,7 +403,7 @@ uint16_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t 
 		read++;
 
 		// Compression: must be a known format
-		if (cmpr > 0x2) return 8;
+		if (cmpr > 0x2) return ERROR_UNKNOWN_COMPRESSION_FORMAT;
 
 		if (cmpr == 0) {	// raw, not compressed
 			// Just memcpy the image
@@ -434,7 +466,7 @@ uint16_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t 
 		layer_start = &img_data_start[sz];
 	}
 
-	return 0;
+	return NO_ERROR;
 }
 
 void FancyEPD::setTemperature(uint8_t temperature)
@@ -515,6 +547,19 @@ void FancyEPD::_sendData(uint8_t command, uint8_t * data, uint16_t len) {
 
 	if (_hardwareSPI) {
 		SPI.endTransaction();
+	}
+}
+
+void FancyEPD::_applyTiming(epd_update_t update_type, uint8_t * timing_normal, uint8_t * timing_inverse)
+{
+	if (update_type >= k_update_builtin_refresh) return;
+
+	if (*timing_normal == 0) {
+		*timing_normal = _timingNormal[update_type];
+	}
+
+	if (*timing_inverse == 0) {
+		*timing_inverse = _timingInverse[update_type];
 	}
 }
 
@@ -609,55 +654,54 @@ void FancyEPD::_sendTemperatureSensor()
 	_sendData(0x1A, data, 2);
 }
 
-// time_0, time_1: optional overrides
-void FancyEPD::_sendWaveforms(epd_update_t update_type, int16_t time_0, int16_t time_1)
+// time_normal, time_inverse: optional overrides
+void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uint8_t time_inverse)
 {
 	uint8_t lut_size = 29;
 	uint8_t data[lut_size];
 	memset(data, 0, lut_size);
 
+	// If the waveform timing is not being sent with overrides:
+	// Apply the default or custom timing (whatever is in
+	// _timingNormal and _timingInverse).
+	if (update_type < k_update_builtin_refresh) {
+		if (time_normal == 0) time_normal = _timingNormal[update_type];
+		if (time_inverse == 0) time_inverse = _timingInverse[update_type];
+	}
+
 	switch (update_type) {
 		case k_update_partial:
 		{
-			if (time_0 < 0) time_0 = 20;
-
 			// Apply voltage only to pixels which change.
 			data[0] = waveformByte(_SOURCE, _LOW, _HIGH, _SOURCE);
-			data[16] = (uint8_t)(time_0);	// timing
+			data[16] = time_normal;
 		}
 		break;
 
-		case k_update_no_blink_fast:
 		case k_update_no_blink:
 		{
-			bool is_fast = (update_type == k_update_no_blink_fast);
-			if (time_0 < 0) time_0 = (is_fast ? 20 : 50);
-
 			// Apply voltage to all pixels, whether they change or not.
 			data[0] = waveformByte(_HIGH, _LOW, _HIGH, _LOW);
-			data[16] = (uint8_t)(time_0);	// timing
+			data[16] = time_normal;	// timing
 		}
 		break;
 
 		case k_update_quick_refresh:
 		{
-			if (time_0 < 0) time_0 = 12;
-			if (time_1 < 0) time_1 = 20;
-
 			data[0] = waveformByte(_LOW, _HIGH, _LOW, _HIGH);	// inverted image
 			data[1] = waveformByte(_HIGH, _LOW, _HIGH, _LOW);	// normal image
 
-			data[16] = (uint8_t)(time_0);	// Inverted image: short flash
-			data[17] = (uint8_t)(time_1);	// Normal image: apply longer
+			data[16] = time_inverse;	// Inverted image: short flash
+			data[17] = time_normal;	// Normal image: apply longer
 		}
 		break;
 
 		case k_update_INTERNAL_image_layer:
 		{
-			if (time_0 < 0) time_0 = 3;
+			if (time_normal == 0) time_normal = 3;
 
 			data[0] = waveformByte(_HIGH, _LOW, _HIGH, _LOW);
-			data[16] = (uint8_t)(time_0);	// Short pulse
+			data[16] = time_normal;	// Short pulse
 		}
 		break;
 
@@ -665,8 +709,6 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, int16_t time_0, int16_t 
 		default:
 		{
 			// builtin_refresh: Waveforms are reset in _sendUpdateActivation()
-
-			//_lastUpdateType = update_type;
 
 			return;
 		}
@@ -680,12 +722,6 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, int16_t time_0, int16_t 
 	/*
 	uint8_t zero = 0;
 	_sendData(0x3A, &zero, 1);
-	*/
-
-	/*
-	_lastUpdateType = update_type;
-	_lastUpdateTime0 = time_0;
-	_lastUpdateTime1 = time_1;
 	*/
 }
 
