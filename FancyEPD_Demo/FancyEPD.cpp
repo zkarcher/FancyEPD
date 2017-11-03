@@ -2,6 +2,7 @@
 #include <SPI.h>
 #include "Adafruit_GFX.h"
 #include "FancyEPD.h"
+#include "FancyEPD_models.h"
 
 #define AUTO_REFRESH_AFTER_UPDATES        (5)
 
@@ -15,26 +16,6 @@
 #define ERROR_INVALID_HEIGHT              (6)
 #define ERROR_IMAGE_DATA_NOT_FOUND        (7)
 #define ERROR_UNKNOWN_COMPRESSION_FORMAT  (8)
-
-static int16_t _modelWidth(epd_model_t model)
-{
-	switch (model) {
-		case k_epd_E2215CS062:    return 112;
-		default:                        break;
-	}
-
-	return 0;	// not found
-}
-
-static int16_t _modelHeight(epd_model_t model)
-{
-	switch (model) {
-		case k_epd_E2215CS062:    return 208;
-		default:                        break;
-	}
-
-	return 0;	// not found
-}
 
 // IL3895.pdf : Voltages, used in waveform phases.
 // See the _sendWaveforms() for working examples.
@@ -50,15 +31,15 @@ static uint8_t waveformByte(uint8_t hh, uint8_t hl, uint8_t lh, uint8_t ll)
 	return (hh << 6) | (hl << 4) | (lh << 2) | ll;
 }
 
-FancyEPD::FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uint32_t bs, uint32_t d0, uint32_t d1) : Adafruit_GFX(_modelWidth(model), _modelHeight(model))
+FancyEPD::FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uint32_t bs, uint32_t d0, uint32_t d1) : Adafruit_GFX(epdWidth(model), epdHeight(model))
 {
 	_model = model;
 	_cs = cs;	// Chip select
 	_dc = dc;	// Data/command
 	_rs = rs;	// Register select
 	_bs = bs;	// Busy signal
-	_d0 = d0;
-	_d1 = d1;
+	_d0 = d0;	// SPI clock
+	_d1 = d1;	// SPI data
 	_hardwareSPI = (d0 == 0xffff);
 	_temperature = 0x1A;
 	_borderColor = 0x0;

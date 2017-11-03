@@ -9,12 +9,25 @@
 
 // Pins for project: github.com/pdp7/kicad-teensy-epaper
 //FancyEPD epd(k_epd_E2215CS062, 17, 16, 14, 15, 13, 11);	// software SPI
-FancyEPD epd(k_epd_E2215CS062, 17, 16, 14, 15);	// hardware SPI
+//FancyEPD epd(k_epd_E2215CS062, 17, 16, 14, 15);	// hardware SPI
 
 //ESP12 Pinout
 //FancyEPD epd(k_epd_E2215CS062, 15, 2, 5, 4, 14, 13);
 
+// DEV: Test CrystalFontz EPDs, using Seeeduino
+FancyEPD epd(k_epd_CFAP122250A00213,
+	10,	/* CS: chip select */
+	5,	/* DC: data/command */
+	2,	/* RS: register select */
+	3	/* BS: busy signal */
+	//11,	/* D0: SPI clock */
+	//13  /* D1: SPI data */
+);
+
 void setup() {
+	pinMode(2, OUTPUT);
+	digitalWrite(2, LOW);   // 4 wire mode
+
 	bool success = epd.init();
 
 	if (!success) {
@@ -26,9 +39,8 @@ void setup() {
 void loop() {
 	//loop_boxes();
 	//loop_anim();
-	//loop_images();
-
-	loop_compression_test();
+	loop_images();
+	//loop_compression_test();
 }
 
 void loop_compression_test() {

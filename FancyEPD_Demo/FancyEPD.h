@@ -13,8 +13,12 @@
 typedef enum epd_model_t {
 	k_epd_none = 0,
 
+	// CrystalFontz
+	k_epd_CFAP122250A00213,   //  2.13",  122  x  250
+
 	// Pervasive Displays
-	k_epd_E2215CS062,	// 2.15", 112 x 208
+	k_epd_E2215CS062,         //  2.15",  112  x  208
+
 } epd_model_t;
 
 typedef enum epd_image_format_t {
