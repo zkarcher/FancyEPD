@@ -139,9 +139,9 @@ bool FancyEPD::getAnimationMode()
 	return _isAnimationMode;
 }
 
-void FancyEPD::setAnimationMode(bool isOn)
+void FancyEPD::setAnimationMode(bool b)
 {
-	_isAnimationMode = isOn;
+	_isAnimationMode = b;
 }
 
 // Default behavior: Only push data for changed pixels.
@@ -222,6 +222,8 @@ void FancyEPD::restoreDefaultTiming(epd_update_t update_type)
 
 void FancyEPD::update(epd_update_t update_type)
 {
+	if (!_canUpdate()) return;
+
 	if (update_type == k_update_auto) {
 		if (_updatesSinceRefresh < (AUTO_REFRESH_AFTER_UPDATES - 1)) {
 			update_type = k_update_no_blink;
@@ -237,6 +239,8 @@ void FancyEPD::update(epd_update_t update_type)
 
 void FancyEPD::updateWithImage(const uint8_t * data, epd_image_format_t format, epd_update_t update_type)
 {
+	if (!_canUpdate()) return;
+
 	// 1 bit (black & white)? Fall back on update()
 	if (format == k_image_1bit) {
 		memcpy(_buffer, data, getBufferSize());
@@ -333,6 +337,8 @@ void FancyEPD::updateWithImage(const uint8_t * data, epd_image_format_t format, 
 
 uint8_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t update_type)
 {
+	if (!_canUpdate()) return;
+
 	uint8_t version = *data;
 	data++;
 
@@ -548,6 +554,16 @@ void FancyEPD::_sendData(uint8_t command, uint8_t * data, uint16_t len) {
 	if (_hardwareSPI) {
 		SPI.endTransaction();
 	}
+}
+
+bool FancyEPD::_canUpdate(void)
+{
+	// _window must be valid. (Something must have been drawn.)
+	if ((_window.xMin > _window.xMax) || (_window.yMin > _window.yMax)) {
+		return false;
+	}
+
+	return true;
 }
 
 void FancyEPD::_sendImageLayer(uint8_t layer_num, uint8_t layer_count, uint8_t newBorderBit)

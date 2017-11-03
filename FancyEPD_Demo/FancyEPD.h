@@ -12,7 +12,9 @@
 
 typedef enum epd_model_t {
 	k_epd_none = 0,
-	k_epd_E2215CS062,	// Pervasive Displays 2.15" : http://www.pervasivedisplays.com/products/215
+
+	// Pervasive Displays
+	k_epd_E2215CS062,	// 2.15", 112 x 208
 } epd_model_t;
 
 typedef enum epd_image_format_t {
@@ -64,11 +66,13 @@ class FancyEPD : public Adafruit_GFX {
 public:
 	FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uint32_t bs, uint32_t d0 = 0xffff, uint32_t d1 = 0xffff);
 	bool init(uint8_t * optionalBuffer = NULL, epd_image_format_t bufferFormat = k_image_1bit);
+
 	uint8_t * getBuffer();
 	uint32_t getBufferSize();
 	void clearBuffer(uint8_t color = 0);
+
 	bool getAnimationMode();
-	void setAnimationMode(bool isOn);
+	void setAnimationMode(bool b);
 	void markDisplayDirty();
 	void markDisplayClean();
 	bool getPixel(int16_t x, int16_t y);
@@ -88,6 +92,7 @@ public:
 	uint8_t updateWithCompressedImage(const uint8_t * data, epd_update_t update_type = k_update_auto);
 
 	void setTemperature(uint8_t temperature);
+
 	void freeBuffer();
 	~FancyEPD();
 
@@ -113,6 +118,8 @@ protected:
 	void _sendData(uint8_t index, uint8_t * data, uint16_t len);
 
 	void _applyCustomTiming(epd_update_t update_type, uint8_t * timing_normal, uint8_t * timing_inverse);
+
+	bool _canUpdate(void);
 
 	void _sendImageLayer(uint8_t layer_num, uint8_t layer_count, uint8_t newBorderBit);
 
