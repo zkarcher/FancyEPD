@@ -138,6 +138,7 @@ protected:
 	void _sendTemperatureSensor();
 	void _sendWaveforms(epd_update_t update_type, uint8_t time_normal = 0, uint8_t time_inverse = 0);
 	void _sendBorderBit(epd_update_t update_type, uint8_t newBit);
+	void _sendVcomVoltage();
 	void _sendBufferData();
 	void _sendUpdateActivation(epd_update_t update_type);
 	void _sendWindow();

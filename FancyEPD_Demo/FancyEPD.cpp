@@ -16,6 +16,7 @@
 #define ERROR_INVALID_HEIGHT              (6)
 #define ERROR_IMAGE_DATA_NOT_FOUND        (7)
 #define ERROR_UNKNOWN_COMPRESSION_FORMAT  (8)
+#define ERROR_CAN_UPDATE_IS_FALSE         (9)
 
 // IL3895.pdf : Voltages, used in waveform phases.
 // See the _sendWaveforms() for working examples.
@@ -31,7 +32,15 @@ static uint8_t waveformByte(uint8_t hh, uint8_t hl, uint8_t lh, uint8_t ll)
 	return (hh << 6) | (hl << 4) | (lh << 2) | ll;
 }
 
-FancyEPD::FancyEPD(epd_model_t model, uint32_t cs, uint32_t dc, uint32_t rs, uint32_t bs, uint32_t d0, uint32_t d1) : Adafruit_GFX(epdWidth(model), epdHeight(model))
+FancyEPD::FancyEPD(
+	epd_model_t model,
+	uint32_t cs,	// CS: chip select
+	uint32_t dc,	// DC: data/command
+	uint32_t rs,	// RS: register select
+	uint32_t bs,	// BS: busy signal
+	uint32_t d0,	// D0: SPI clock (optional software SPI)
+	uint32_t d1	// D1: SPI data	(optional software SPI)
+) : Adafruit_GFX(epdWidth(model), epdHeight(model))
 {
 	_model = model;
 	_cs = cs;	// Chip select
@@ -90,6 +99,16 @@ bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
 	pinMode(_rs, OUTPUT);
 	pinMode(_bs, INPUT_PULLUP);
 
+	// Reset!
+	if (_model == k_epd_CFAP122250A00213) {
+		const uint8_t RESET_PIN = 18;	// FIXME ZKA
+		pinMode(RESET_PIN, OUTPUT);
+		digitalWrite(RESET_PIN, 0);
+		delay(100);
+		digitalWrite(RESET_PIN, 1);
+		delay(100);
+	}
+
 	// Reset the screen
 	digitalWrite(_rs, HIGH);
 	//delay(1);         // ZKA: required?
@@ -105,8 +124,9 @@ uint8_t * FancyEPD::getBuffer()
 
 uint32_t FancyEPD::getBufferSize()
 {
-	// Assumes 1-bit buffer
-	return (WIDTH * HEIGHT) / 8;
+	// Assumes 1-bit buffer.
+	int16_t WIDTH_BYTES = ((WIDTH + 7) >> 3);
+	return (WIDTH_BYTES * HEIGHT);
 }
 
 void FancyEPD::clearBuffer(uint8_t color)
@@ -154,7 +174,9 @@ bool FancyEPD::getPixel(int16_t x, int16_t y)
 {
 	_applyRotationForBuffer(&x, &y);
 
-	uint8_t *ptr = &_buffer[(x / 8) + y * ((WIDTH + 7) / 8)];
+	int16_t xByte = x >> 3;
+	int16_t bytesPerRow = (WIDTH + 7) >> 3;
+	uint8_t *ptr = &_buffer[y * bytesPerRow + xByte];
 
 	return (*ptr) & (0x80 >> (x & 0x7)) ? true : false;
 }
@@ -166,8 +188,11 @@ void FancyEPD::drawPixel(int16_t x, int16_t y, uint16_t color)
 
 	_applyRotationForBuffer(&x, &y);
 
-	uint8_t *ptr = &_buffer[(x / 8) + y * ((WIDTH + 7) / 8)];
+	int16_t xByte = x >> 3;
+	int16_t bytesPerRow = (WIDTH + 7) >> 3;
+	uint8_t *ptr = &_buffer[y * bytesPerRow + xByte];
 
+	// Set the bit color
 	if (color) {
 		*ptr |= 0x80 >> (x & 0x7);
 	} else {
@@ -318,7 +343,7 @@ void FancyEPD::updateWithImage(const uint8_t * data, epd_image_format_t format, 
 
 uint8_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t update_type)
 {
-	if (!_canUpdate()) return;
+	if (!_canUpdate()) return ERROR_CAN_UPDATE_IS_FALSE;
 
 	uint8_t version = *data;
 	data++;
@@ -496,11 +521,19 @@ void FancyEPD::_softwareSPI(uint8_t data) {
 
 void FancyEPD::_sendData(uint8_t command, uint8_t * data, uint16_t len) {
 	// Ensure the busy pin is LOW
+	//Serial.print("Wait...");
 	while (digitalRead(_bs) == HIGH);
+	//Serial.println(" OK");
 
 	// 1s / 250ns clock cycle time == 4,000,000 Hz
 	if (_hardwareSPI) {
-		SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));
+		if (_model == k_epd_E2215CS062) {
+			SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));
+
+		} else if (_model == k_epd_CFAP122250A00213) {
+			// CrystalFontz: Hangs on beginTransaction! Hmm.
+			//SPI.beginTransaction(SPISettings(500000, MSBFIRST, SPI_MODE0));
+		}
 	}
 
 	digitalWrite(_cs, LOW);
@@ -539,6 +572,9 @@ void FancyEPD::_sendData(uint8_t command, uint8_t * data, uint16_t len) {
 
 bool FancyEPD::_canUpdate(void)
 {
+	// FIXME ZKA
+	return true;
+
 	// _window must be valid. (Something must have been drawn.)
 	if ((_window.xMin > _window.xMax) || (_window.yMin > _window.yMax)) {
 		return false;
@@ -590,6 +626,13 @@ void FancyEPD::_screenWillUpdate(epd_update_t update_type)
 		_updatesSinceRefresh++;
 	}
 
+	// One-time commands on setup
+	if (_model == k_epd_CFAP122250A00213) {
+		// Software start (not documented in IL3895.pdf? Hmm)
+		uint8_t soft_start[] = {0xd7, 0xd6, 0x9d};
+		_sendData(0x0c, soft_start, 3);
+	}
+
 	_sendDriverOutput();
 	_sendGateScanStart();
 	_sendDataEntryMode();
@@ -597,6 +640,7 @@ void FancyEPD::_screenWillUpdate(epd_update_t update_type)
 	_sendAnalogMode();
 	_sendTemperatureSensor();
 	_sendWaveforms(update_type);
+	_sendVcomVoltage();
 	_sendBorderBit(update_type, (_borderColor & 0x80) ? 1 : 0);
 	_sendWindow();
 }
@@ -616,32 +660,49 @@ void FancyEPD::_sendGateScanStart()
 void FancyEPD::_sendDataEntryMode()
 {
 	uint8_t data[] = {0x03};
+
+	if (_model == k_epd_CFAP122250A00213) {
+		// Y decrement, X increment
+		// Firmware bug?: Can't start drawing on row #0 :(
+		data[0] = 0x01;
+	}
+
 	_sendData(0x11, data, 1);
 }
 
 void FancyEPD::_sendGateDrivingVoltage()
 {
-	uint8_t data[] = {0x10, 0x0A};
-	_sendData(0x03, data, 2);
+	if (_model == k_epd_E2215CS062) {
+		uint8_t data[] = {0x10, 0x0A};
+		_sendData(0x03, data, 2);
+	}
 }
 
 void FancyEPD::_sendAnalogMode()
 {
-	uint8_t data[] = {0, 0, 0};
-	_sendData(0x05, data, 1);
-	_sendData(0x75, data, 3);
+	if (_model == k_epd_E2215CS062) {
+		uint8_t data[] = {0, 0, 0};
+		_sendData(0x05, data, 1);
+		_sendData(0x75, data, 3);
+	}
 }
 
 void FancyEPD::_sendTemperatureSensor()
 {
-	uint8_t data[] = {_temperature, 0x0};
-	_sendData(0x1A, data, 2);
+	if (_model == k_epd_E2215CS062) {
+		uint8_t data[] = {_temperature, 0x0};
+		_sendData(0x1A, data, 2);
+	}
 }
 
 // time_normal, time_inverse: optional overrides
 void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uint8_t time_inverse)
 {
 	uint8_t lut_size = 29;
+	if (_model == k_epd_CFAP122250A00213) {
+		lut_size = 30;
+	}
+
 	uint8_t data[lut_size];
 	memset(data, 0, lut_size);
 
@@ -659,6 +720,9 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 			// Apply voltage only to pixels which change.
 			data[0] = waveformByte(_SOURCE, _LOW, _HIGH, _SOURCE);
 			data[16] = time_normal;
+			if (_model == k_epd_CFAP122250A00213) {
+				data[17] = 0x01;
+			}
 		}
 		break;
 
@@ -667,6 +731,12 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 			// Apply voltage to all pixels, whether they change or not.
 			data[0] = waveformByte(_HIGH, _LOW, _HIGH, _LOW);
 			data[16] = time_normal;	// timing
+
+			if (_model == k_epd_CFAP122250A00213) {	// FIXME ZKA
+				data[0] = 0x18;
+				data[16] = 0x0F;
+				data[17] = 0x01;
+			}
 		}
 		break;
 
@@ -677,6 +747,9 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 
 			data[16] = time_inverse;	// Inverted image: short flash
 			data[17] = time_normal;	// Normal image: apply longer
+			if (_model == k_epd_CFAP122250A00213) {
+				data[18] = 0x01;
+			}
 		}
 		break;
 
@@ -707,6 +780,16 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 	uint8_t zero = 0;
 	_sendData(0x3A, &zero, 1);
 	*/
+
+	if (_model == k_epd_CFAP122250A00213) {
+		// "4 dummy line per gate"
+		uint8_t dummy = 0x1a;
+		_sendData(0x3a, &dummy, 1);
+
+		// "2us per line"
+		uint8_t gate_time = 0x08;
+		_sendData(0x3b, &gate_time, 1);
+	}
 }
 
 void FancyEPD::_sendBorderBit(epd_update_t update_type, uint8_t newBit)
@@ -723,6 +806,14 @@ void FancyEPD::_sendBorderBit(epd_update_t update_type, uint8_t newBit)
 	_sendData(0x3C, &borderByte, 1);
 
 	_borderBit = newBit;
+}
+
+void FancyEPD::_sendVcomVoltage()
+{
+	if (_model == k_epd_CFAP122250A00213) {
+		uint8_t vcom[] = {0xa8};
+		_sendData(0x2c, vcom, 1);
+	}
 }
 
 void FancyEPD::_sendBufferData()
@@ -785,10 +876,19 @@ void FancyEPD::_sendWindow()
 		markDisplayDirty();
 	}
 
-	// Multiplexing: Only MUX the rows which have changed
 	int16_t muxLines = max(16, _window.yMax - _window.yMin + 1);
-	uint8_t data_mux[] = {(uint8_t)muxLines, 0x0};
-	_sendData(0x01, data_mux, 2);
+
+	// Multiplexing: Only MUX the rows which have changed
+	if (_model == k_epd_E2215CS062) {
+		uint8_t data_mux[] = {(uint8_t)muxLines, 0x0};
+		_sendData(0x01, data_mux, 2);
+
+	} else if (_model == k_epd_CFAP122250A00213) {
+		// ZKA: uh oh. Is this fundamentally different from E2215CS062?
+		markDisplayDirty();
+		uint8_t data_mux[] = {(250-1)&0x00FF, (250-1)>>8, 0x00};
+		_sendData(0x01, data_mux, 3);
+	}
 
 	uint8_t gateStartY = min(_window.yMin, HEIGHT - (muxLines - 1));
 	_sendData(0x0F, &gateStartY, 1);
@@ -812,11 +912,35 @@ void FancyEPD::_sendWindow()
 		(uint8_t)(yMin),
 		(uint8_t)(yMax)
 	};
-	_sendData(0x45, data_y, 2);
+
+	if (_model == k_epd_E2215CS062) {
+		_sendData(0x45, data_y, 2);
+
+	} else if (_model == k_epd_CFAP122250A00213) {
+		uint8_t data_y16[] = {
+			// Inverted Y  :(  Because we can't seem to draw
+			// normally (inc X, inc Y) from Y==0.
+			(uint8_t)(yMax & 0xff),
+			(uint8_t)(yMax >> 8),
+			(uint8_t)(yMin & 0xff),
+			(uint8_t)(yMin >> 8),
+		};
+		_sendData(0x45, data_y16, 4);
+	}
 
 	// XY counter
-	_sendData(0x4E, &data_x[0], 1);
-	_sendData(0x4F, &data_y[0], 1);
+	if (_model == k_epd_E2215CS062) {
+		_sendData(0x4E, &data_x[0], 1);
+		_sendData(0x4F, &data_y[0], 1);
+
+	} else if (_model == k_epd_CFAP122250A00213) {
+		uint8_t data16[] = {0, 0};
+		_sendData(0x4E, data16, 1);
+
+		data16[0] = (yMax & 0xff);
+		data16[1] = yMax >> 8;
+		_sendData(0x4F, data16, 2);
+	}
 }
 
 void FancyEPD::_applyRotationForBuffer(int16_t * x, int16_t * y)

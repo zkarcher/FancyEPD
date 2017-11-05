@@ -4,35 +4,61 @@
 //#include "FancyEPD_Demo_images.h"
 #include "compression_test.h"
 
-#define DELAY_BETWEEN_IMAGES_MS       (6 * 1000)
+#define DELAY_BETWEEN_IMAGES_MS       (2 * 1000)
 #define DO_ROTATION                   (true)
+#define BLINK_PIN                     (13)
+#define DO_SERIAL                     (true)
 
 // Pins for project: github.com/pdp7/kicad-teensy-epaper
 //FancyEPD epd(k_epd_E2215CS062, 17, 16, 14, 15, 13, 11);	// software SPI
+FancyEPD epd(k_epd_CFAP122250A00213, 17, 16, 14, 15);//, 13, 11);	// software SPI
+
 //FancyEPD epd(k_epd_E2215CS062, 17, 16, 14, 15);	// hardware SPI
 
 //ESP12 Pinout
 //FancyEPD epd(k_epd_E2215CS062, 15, 2, 5, 4, 14, 13);
 
 // DEV: Test CrystalFontz EPDs, using Seeeduino
+/*
 FancyEPD epd(k_epd_CFAP122250A00213,
-	10,	/* CS: chip select */
-	5,	/* DC: data/command */
-	2,	/* RS: register select */
-	3	/* BS: busy signal */
-	//11,	/* D0: SPI clock */
-	//13  /* D1: SPI data */
+	10,	// CS: chip select
+	5,	// DC: data/command
+	8,	// RS: register select
+	3,	// BS: busy signal
+	13,	// D0: SPI clock
+	11  // D1: SPI data
 );
+*/
 
 void setup() {
-	pinMode(2, OUTPUT);
-	digitalWrite(2, LOW);   // 4 wire mode
+	if (DO_SERIAL) {
+		Serial.begin(115200);
+	}
 
+	while (!Serial) {};
+
+	// reset?
+	const uint8_t RESET_PIN = 6;
+	pinMode(RESET_PIN, OUTPUT);
+	digitalWrite(RESET_PIN, LOW);
+	delay(100);
+	digitalWrite(RESET_PIN, HIGH);
+	delay(100);
+
+	// If onboard LED is blinking at 2Hz: EPD could not init.
+	// Probably not enough RAM on the microcontroller.
 	bool success = epd.init();
 
 	if (!success) {
-		// Panic and freak out
-		return;
+		// Panic and freak out.
+		pinMode(BLINK_PIN, OUTPUT);
+
+		while (true) {
+			digitalWrite(BLINK_PIN, HIGH);
+			delay(250);
+			digitalWrite(BLINK_PIN, LOW);
+			delay(250);
+		}
 	}
 }
 
@@ -148,30 +174,44 @@ void loop_anim() {
 }
 
 void loop_images() {
+	/*
+	if (DO_SERIAL) Serial.println("next: builtin");
+
 	if (DO_ROTATION) epd.setRotation(0);
 	drawCircles();
 	drawLabel("Update:\n builtin_refresh");
 	epd.setBorderColor(0x00);	// white
 	epd.update(k_update_builtin_refresh);
 	delay(DELAY_BETWEEN_IMAGES_MS);
+	*/
+
+	/*
+	if (DO_SERIAL) Serial.println("next: quick refresh");
 
 	if (DO_ROTATION) epd.setRotation(1);
 	drawTriangles();
 	drawLabel("Update:\n  quick_refresh");
 	epd.update(k_update_quick_refresh);
 	delay(DELAY_BETWEEN_IMAGES_MS);
+	*/
 
-	if (DO_ROTATION) epd.setRotation(2);
+	if (DO_SERIAL) Serial.println("next: no_blink");
+
+	if (DO_ROTATION) epd.setRotation(0);
 	drawCircles();
 	drawLabel("Update:\n   no_blink");
 	epd.update(k_update_no_blink);
 	delay(DELAY_BETWEEN_IMAGES_MS);
+
+	/*
+	if (DO_SERIAL) Serial.println("next: partial");
 
 	if (DO_ROTATION) epd.setRotation(3);
 	drawTriangles();
 	drawLabel("Update:\n    partial");
 	epd.update(k_update_partial);
 	delay(DELAY_BETWEEN_IMAGES_MS);
+	*/
 
 	/*
 	// Angel
