@@ -3,7 +3,7 @@
 #include "FancyEPD.h"
 //#include "FancyEPD_Demo_images.h"
 //#include "compression_test.h"
-#include "crystal_fontz_test.h"
+//#include "crystal_fontz_test.h"
 
 #define DELAY_BETWEEN_IMAGES_MS       (10 * 1000)
 #define DO_ROTATION                   (true)
@@ -12,24 +12,13 @@
 
 // Pins for project: github.com/pdp7/kicad-teensy-epaper
 //FancyEPD epd(k_epd_E2215CS062, 17, 16, 14, 15, 13, 11);	// software SPI
-FancyEPD epd(k_epd_CFAP122250A00213, 17, 16, 14, 15);//, 13, 11);	// software SPI
+//FancyEPD epd(k_epd_CFAP122250A00213, 17, 16, 14, 15);//, 13, 11);	// software SPI
+FancyEPD epd(k_epd_CFAP128296C00290, 17, 16, 14, 15);//, 13, 11);	// software SPI
 
 //FancyEPD epd(k_epd_E2215CS062, 17, 16, 14, 15);	// hardware SPI
 
 //ESP12 Pinout
 //FancyEPD epd(k_epd_E2215CS062, 15, 2, 5, 4, 14, 13);
-
-// DEV: Test CrystalFontz EPDs, using Seeeduino
-/*
-FancyEPD epd(k_epd_CFAP122250A00213,
-	10,	// CS: chip select
-	5,	// DC: data/command
-	8,	// RS: register select
-	3,	// BS: busy signal
-	13,	// D0: SPI clock
-	11  // D1: SPI data
-);
-*/
 
 void setup() {
 	if (DO_SERIAL) {
@@ -61,20 +50,22 @@ void setup() {
 			delay(250);
 		}
 	}
+
+	Serial.println("setup success!");
 }
 
 void loop() {
 	//loop_boxes();
 	//loop_anim();
-	//loop_images();
-	loop_compression_test();
+	loop_shapes();
+	//loop_compression_test();
 }
 
 void loop_compression_test() {
 	epd.setRotation(0);
 	epd.setBorderColor(0xff);	// black
 
-	uint16_t err = epd.updateWithCompressedImage(moth);
+	//uint16_t err = epd.updateWithCompressedImage(moth);
 
 	/*
 	if (err) {
@@ -174,7 +165,7 @@ void loop_anim() {
 	epd.update(k_update_no_blink);
 }
 
-void loop_images() {
+void loop_shapes() {
 	/*
 	if (DO_SERIAL) Serial.println("next: builtin");
 

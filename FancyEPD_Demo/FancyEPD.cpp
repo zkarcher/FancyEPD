@@ -43,6 +43,7 @@ FancyEPD::FancyEPD(
 ) : Adafruit_GFX(epdWidth(model), epdHeight(model))
 {
 	_model = model;
+	_driver = modelDriver(model);
 	_cs = cs;	// Chip select
 	_dc = dc;	// Data/command
 	_rs = rs;	// Register select
@@ -116,6 +117,49 @@ bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
 	digitalWrite(_rs, HIGH);
 	//delay(1);         // ZKA: required?
 	digitalWrite(_cs, HIGH);
+
+	// One-time commands on startup
+	switch (_model) {
+		case k_epd_CFAP122250A00213:
+		{
+			// Software start (not documented in IL3895.pdf? Hmm)
+			uint8_t soft_start[] = {0xd7, 0xd6, 0x9d};
+			_sendData(0x0c, soft_start, 3);
+		}
+		break;
+
+		case k_epd_CFAP128296C00290:
+		case k_epd_CFAP128296D00290:
+		{
+			uint8_t data[] = {0, 0, 0};
+
+			// Power on
+			_sendData(0x04, NULL, 0);
+
+			// Panel setting: run, booster on, scan right, scan down, blk+white only, LUT from OTP
+			data[0] = 0x97;
+			if (_model == k_epd_CFAP128296D00290) {
+				data[0] = 0x83;	// blk+red+white
+			}
+			_sendData(0x00, data, 1);
+
+			// Resolution setting: 1:1 please
+			data[0] = 128;
+			data[1] = 296 >> 8;
+			data[2] = 296 & 0xff;
+			_sendData(0x61, data, 3);
+
+			// VCOM and data interval settings
+			data[0] = 0x97;
+			if (_model == k_epd_CFAP128296D00290) {
+				data[0] = 0x87;
+			}
+			_sendData(0x50, data, 1);
+		}
+		break;
+
+		default: break;
+	}
 
 	return true;
 }
@@ -549,16 +593,20 @@ void FancyEPD::_softwareSPI(uint8_t data) {
 
 void FancyEPD::_sendData(uint8_t command, uint8_t * data, uint16_t len) {
 	// Ensure the busy pin is LOW
-	//Serial.print("Wait...");
-	while (digitalRead(_bs) == HIGH);
-	//Serial.println(" OK");
+	Serial.print("Wait...");
+	if (_driver == k_driver_IL3895) {
+		while (digitalRead(_bs) == HIGH) {};
+	} else if (_driver == k_driver_CFAP128296) {
+		while (digitalRead(_bs) == LOW) {};
+	}
+	Serial.println(" OK");
 
 	// 1s / 250ns clock cycle time == 4,000,000 Hz
 	if (_hardwareSPI) {
 		if (_model == k_epd_E2215CS062) {
 			SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));
 
-		} else if (_model == k_epd_CFAP122250A00213) {
+		} else {
 			// CrystalFontz: Hangs on beginTransaction! Hmm.
 			//SPI.beginTransaction(SPISettings(500000, MSBFIRST, SPI_MODE0));
 		}
@@ -658,13 +706,6 @@ void FancyEPD::_screenWillUpdate(epd_update_t update_type)
 		_updatesSinceRefresh++;
 	}
 
-	// One-time commands on setup
-	if (_model == k_epd_CFAP122250A00213) {
-		// Software start (not documented in IL3895.pdf? Hmm)
-		uint8_t soft_start[] = {0xd7, 0xd6, 0x9d};
-		_sendData(0x0c, soft_start, 3);
-	}
-
 	_sendDriverOutput();
 	_sendGateScanStart();
 	_sendDataEntryMode();
@@ -679,20 +720,26 @@ void FancyEPD::_screenWillUpdate(epd_update_t update_type)
 
 void FancyEPD::_sendDriverOutput()
 {
-	uint8_t data[] = {0xCF, 0x00};
-	_sendData(0x01, data, 2);
+	if (_driver == k_driver_IL3895) {
+		uint8_t data[] = {0xCF, 0x00};
+		_sendData(0x01, data, 2);
+	}
 }
 
 void FancyEPD::_sendGateScanStart()
 {
-	uint8_t data[] = {0x0};
-	_sendData(0x0F, data, 1);
+	if (_driver == k_driver_IL3895) {
+		uint8_t data[] = {0x0};
+		_sendData(0x0F, data, 1);
+	}
 }
 
 void FancyEPD::_sendDataEntryMode()
 {
-	uint8_t data[] = {0x03};
-	_sendData(0x11, data, 1);
+	if (_driver == k_driver_IL3895) {
+		uint8_t data[] = {0x03};
+		_sendData(0x11, data, 1);
+	}
 }
 
 void FancyEPD::_sendGateDrivingVoltage()
@@ -723,6 +770,9 @@ void FancyEPD::_sendTemperatureSensor()
 // time_normal, time_inverse: optional overrides
 void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uint8_t time_inverse)
 {
+	// FIXME ZKA: waveforms for CrystalFontz 128x296
+	if (_driver != k_driver_IL3895) return;
+
 	uint8_t lut_size = 29;
 	if (_model == k_epd_CFAP122250A00213) {
 		lut_size = 30;
@@ -807,16 +857,18 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 
 void FancyEPD::_sendBorderBit(epd_update_t update_type, uint8_t newBit)
 {
-	uint8_t borderByte = 0x80 | (_borderBit << 1) | newBit;
+	if (_driver == k_driver_IL3895) {
+		uint8_t borderByte = 0x80 | (_borderBit << 1) | newBit;
 
-	// _partial update: Looks bad if the border bit doesn't
-	// change. So apply voltage in that case.
-	if (update_type == k_update_partial) {
-		// Force a change. Make A1 the opposite of A0.
-		borderByte = (borderByte & (~0b10)) | (((~newBit) << 1) & 0b10);
+		// _partial update: Looks bad if the border bit doesn't
+		// change. So apply voltage in that case.
+		if (update_type == k_update_partial) {
+			// Force a change. Make A1 the opposite of A0.
+			borderByte = (borderByte & (~0b10)) | (((~newBit) << 1) & 0b10);
+		}
+
+		_sendData(0x3C, &borderByte, 1);
 	}
-
-	_sendData(0x3C, &borderByte, 1);
 
 	_borderBit = newBit;
 }
@@ -853,7 +905,13 @@ void FancyEPD::_sendBufferData()
 		_swapBufferBytes(xMinByte, yMin, xMaxByte, yMax, true);
 	}
 
-	_sendData(0x24, &_buffer[0], len);
+	if (_driver == k_driver_IL3895) {
+		_sendData(0x24, &_buffer[0], len);
+
+	} else if (_driver == k_driver_CFAP128296) {
+		_sendData(0x13, &_buffer[0], len);
+		_sendData(0x11, NULL, 0);	// DATA STOP command
+	}
 
 	// After sending: Swap everything back.
 	if (doArrange) {
@@ -863,14 +921,20 @@ void FancyEPD::_sendBufferData()
 
 void FancyEPD::_sendUpdateActivation(epd_update_t update_type)
 {
-	uint8_t sequence = 0xC7;
-	if (update_type == k_update_builtin_refresh) {
-		sequence = 0xF7;
+	if (_driver == k_driver_IL3895) {
+		uint8_t sequence = 0xC7;
+		if (update_type == k_update_builtin_refresh) {
+			sequence = 0xF7;
+		}
+
+		_sendData(0x22, &sequence, 1);	// Display Update type
+
+		_sendData(0x20, NULL, 0);	// Master activation
+
+	} else if (_driver == k_driver_CFAP128296) {
+		_sendData(0x12, NULL, 0);	// Display refresh
+
 	}
-
-	_sendData(0x22, &sequence, 1);	// Display Update type
-
-	_sendData(0x20, NULL, 0);	// Master activation
 
 	// To defeat double-buffering artifacts: Cache _window
 	// as _prevWindow.
@@ -882,54 +946,56 @@ void FancyEPD::_sendUpdateActivation(epd_update_t update_type)
 
 void FancyEPD::_sendWindow()
 {
-	// When not in animation mode: Always send a full
-	// screen of data. Images will look cleaner
-	// (less drift towards VCOM grey) but it's slower.
-	if (!_isAnimationMode) {
-		markDisplayDirty();
+	if (_driver == k_driver_IL3895) {
+		// When not in animation mode: Always send a full
+		// screen of data. Images will look cleaner
+		// (less drift towards VCOM grey) but it's slower.
+		if (!_isAnimationMode) {
+			markDisplayDirty();
+		}
+
+		int16_t muxLines = max(16, _window.yMax - _window.yMin + 1);
+
+		// Multiplexing: Only MUX the rows which have changed
+		if (_model == k_epd_E2215CS062) {
+			uint8_t data_mux[] = {(uint8_t)muxLines, 0x0};
+			_sendData(0x01, data_mux, 2);
+
+		} else if (_model == k_epd_CFAP122250A00213) {
+			// ZKA: uh oh. Is this fundamentally different from E2215CS062?
+			markDisplayDirty();
+			uint8_t data_mux[] = {(250-1)&0x00FF, (250-1)>>8, 0x00};
+			_sendData(0x01, data_mux, 3);
+		}
+
+		uint8_t gateStartY = min(_window.yMin, HEIGHT - (muxLines - 1));
+		_sendData(0x0F, &gateStartY, 1);
+
+		// Window for image data: Send enough pixels to cover
+		// both _prevWindow and _window, defeat double-buffering
+		// artifacts on the device
+		int16_t xMin = min(_prevWindow.xMin, _window.xMin);
+		int16_t xMax = max(_prevWindow.xMax, _window.xMax);
+		int16_t yMin = min(_prevWindow.yMin, _window.yMin);
+		int16_t yMax = max(_prevWindow.yMax, _window.yMax);
+
+		// Window coordinates
+		uint8_t data_x[] = {
+			(uint8_t)(xMin >> 3),
+			(uint8_t)(xMax >> 3)
+		};
+		_sendData(0x44, data_x, 2);
+
+		uint8_t data_y[] = {
+			(uint8_t)(yMin),
+			(uint8_t)(yMax)
+		};
+		_sendData(0x45, data_y, 2);
+
+		// XY counter
+		_sendData(0x4E, &data_x[0], 1);
+		_sendData(0x4F, &data_y[0], 1);
 	}
-
-	int16_t muxLines = max(16, _window.yMax - _window.yMin + 1);
-
-	// Multiplexing: Only MUX the rows which have changed
-	if (_model == k_epd_E2215CS062) {
-		uint8_t data_mux[] = {(uint8_t)muxLines, 0x0};
-		_sendData(0x01, data_mux, 2);
-
-	} else if (_model == k_epd_CFAP122250A00213) {
-		// ZKA: uh oh. Is this fundamentally different from E2215CS062?
-		markDisplayDirty();
-		uint8_t data_mux[] = {(250-1)&0x00FF, (250-1)>>8, 0x00};
-		_sendData(0x01, data_mux, 3);
-	}
-
-	uint8_t gateStartY = min(_window.yMin, HEIGHT - (muxLines - 1));
-	_sendData(0x0F, &gateStartY, 1);
-
-	// Window for image data: Send enough pixels to cover
-	// both _prevWindow and _window, defeat double-buffering
-	// artifacts on the device
-	int16_t xMin = min(_prevWindow.xMin, _window.xMin);
-	int16_t xMax = max(_prevWindow.xMax, _window.xMax);
-	int16_t yMin = min(_prevWindow.yMin, _window.yMin);
-	int16_t yMax = max(_prevWindow.yMax, _window.yMax);
-
-	// Window coordinates
-	uint8_t data_x[] = {
-		(uint8_t)(xMin >> 3),
-		(uint8_t)(xMax >> 3)
-	};
-	_sendData(0x44, data_x, 2);
-
-	uint8_t data_y[] = {
-		(uint8_t)(yMin),
-		(uint8_t)(yMax)
-	};
-	_sendData(0x45, data_y, 2);
-
-	// XY counter
-	_sendData(0x4E, &data_x[0], 1);
-	_sendData(0x4F, &data_y[0], 1);
 }
 
 void FancyEPD::_applyRotationForBuffer(int16_t * x, int16_t * y)

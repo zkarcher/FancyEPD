@@ -10,6 +10,8 @@ $(document).ready(function(){
 
 	const SCREENS = {
 		"CFAP122250A00213": {dims: [122, 250]},
+		"CFAP128296C00290": {dims: [128, 296]},
+		"CFAP128296D00290": {dims: [128, 296], color: "blk+red"},
 		"E2215CS062": {dims: [112, 208]},
 	};
 
@@ -203,7 +205,7 @@ $(document).ready(function(){
 		beforeEach: onDropzoneData
 	});
 
-	$("screen").on("change", resizeDropzone);
+	$("#screen").on("change", resizeDropzone);
 	$("input[name=orientation]").on("change", resizeDropzone);
 	$("#palette").on("change", redrawImage);
 	$("#compression").on("change", redrawImage);

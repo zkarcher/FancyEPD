@@ -15,6 +15,8 @@ typedef enum epd_model_t {
 
 	// CrystalFontz
 	k_epd_CFAP122250A00213,   //  2.13",  122  x  250
+	k_epd_CFAP128296C00290,   //  2.9",   128  x  296
+	k_epd_CFAP128296D00290,   //  2.9",   128  x  296  (blk+red)
 
 	// Pervasive Displays
 	k_epd_E2215CS062,         //  2.15",  112  x  208
@@ -52,6 +54,12 @@ typedef enum epd_update_t {
 	k_update_INTERNAL_image_layer,	// grayscale image layers
 
 } epd_update_t;
+
+typedef enum epd_driver_t {
+	k_driver_unknown = 0,
+	k_driver_IL3895,
+	k_driver_CFAP128296,	// What is the proper part number?
+} epd_driver_t;
 
 typedef struct {
 	int16_t xMin;
@@ -102,6 +110,7 @@ public:
 
 protected:
 	epd_model_t _model;
+	epd_driver_t _driver;
 	uint32_t _d0, _d1, _cs, _dc, _rs, _bs;
 	uint8_t _temperature;
 	uint8_t _borderColor, _borderBit;
