@@ -2,9 +2,10 @@
 #include <Adafruit_GFX.h>
 #include "FancyEPD.h"
 //#include "FancyEPD_Demo_images.h"
-#include "compression_test.h"
+//#include "compression_test.h"
+#include "crystal_fontz_test.h"
 
-#define DELAY_BETWEEN_IMAGES_MS       (2 * 1000)
+#define DELAY_BETWEEN_IMAGES_MS       (10 * 1000)
 #define DO_ROTATION                   (true)
 #define BLINK_PIN                     (13)
 #define DO_SERIAL                     (true)
@@ -65,15 +66,15 @@ void setup() {
 void loop() {
 	//loop_boxes();
 	//loop_anim();
-	loop_images();
-	//loop_compression_test();
+	//loop_images();
+	loop_compression_test();
 }
 
 void loop_compression_test() {
 	epd.setRotation(0);
 	epd.setBorderColor(0xff);	// black
 
-	uint16_t err = epd.updateWithCompressedImage(angel);
+	uint16_t err = epd.updateWithCompressedImage(moth);
 
 	/*
 	if (err) {

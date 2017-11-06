@@ -9,7 +9,8 @@ $(document).ready(function(){
 	var file_name = null;
 
 	const SCREENS = {
-		"E2215CS062": {dims:[112, 208]},
+		"CFAP122250A00213": {dims: [122, 250]},
+		"E2215CS062": {dims: [112, 208]},
 	};
 
 	const PALETTES = {

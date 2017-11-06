@@ -100,6 +100,8 @@ bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
 	pinMode(_bs, INPUT_PULLUP);
 
 	// Reset!
+	// FIXME ZKA: Add reset pin?
+	/*
 	if (_model == k_epd_CFAP122250A00213) {
 		const uint8_t RESET_PIN = 18;	// FIXME ZKA
 		pinMode(RESET_PIN, OUTPUT);
@@ -108,6 +110,7 @@ bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
 		digitalWrite(RESET_PIN, 1);
 		delay(100);
 	}
+	*/
 
 	// Reset the screen
 	digitalWrite(_rs, HIGH);
@@ -411,23 +414,48 @@ uint8_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t u
 
 		const uint8_t * img_data_start = decode_bytes.data;
 		const uint8_t * read = img_data_start;
-		uint8_t cmpr = *read;
+		uint8_t cmpr = *read;	// header byte == compression type
 		read++;
 
 		// Compression: must be a known format
 		if (cmpr > 0x2) return ERROR_UNKNOWN_COMPRESSION_FORMAT;
 
-		if (cmpr == 0) {	// raw, not compressed
+		int16_t x = 0, y = 0;
+
+		// cmpr == 0: Raw, not compressed
+		if (cmpr == 0) {
 			// Just memcpy the image
-			memcpy(_buffer, read, (width * height) >> 3);
+			// Nope! This fails when pixel width isn't an
+			// integer multiple of 8.
+			//memcpy(_buffer, read, (width * height) >> 3);
+
+			uint8_t mask = 0x80;
+
+			while (y < height) {
+				x = 0;
+
+				while (x < width) {
+					drawPixel(x, y, ((*read) & mask) ? 0xff : 0x0);
+
+					if (mask == 0x01) {
+						mask = 0x80;
+						read++;
+
+					} else {
+						mask >>= 1;
+					}
+
+					x++;
+				}
+
+				y++;
+			}
 
 		} else if ((cmpr == 1) || (cmpr == 2)) {	// RLE
 			clearBuffer(0x0);
 			bool isOn = false;
 
 			vlq_decoder rle = (vlq_decoder){.data = &read[1], .mask = 0x80, .word_size = *read};
-
-			int16_t x = 0, y = 0;
 
 			while (y < height) {
 				uint32_t run = _vlqDecode(&rle);
@@ -589,6 +617,10 @@ void FancyEPD::_sendImageLayer(uint8_t layer_num, uint8_t layer_count, uint8_t n
 
 	// FIXME ZKA: support different image timings, based on layer_num and layer_count
 	uint8_t timing = 3;
+	if (_model == k_epd_CFAP122250A00213) {
+		timing = 4;
+	}
+
 	_sendWaveforms(draw_scheme, timing);
 
 	_sendBorderBit(draw_scheme, (newBorderBit) ? 1 : 0);
@@ -660,16 +692,6 @@ void FancyEPD::_sendGateScanStart()
 void FancyEPD::_sendDataEntryMode()
 {
 	uint8_t data[] = {0x03};
-
-	/*
-	if (_model == k_epd_CFAP122250A00213) {
-		// Y decrement, X increment
-		// Firmware bug?: Can't start drawing on row #0 :(
-		// Also can't get X decrement working.
-		data[0] = 0x01;
-	}
-	*/
-
 	_sendData(0x11, data, 1);
 }
 
@@ -723,9 +745,6 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 			// Apply voltage only to pixels which change.
 			data[0] = waveformByte(_SOURCE, _LOW, _HIGH, _SOURCE);
 			data[16] = time_normal;
-			if (_model == k_epd_CFAP122250A00213) {
-				data[17] = 0x01;
-			}
 		}
 		break;
 
@@ -734,13 +753,6 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 			// Apply voltage to all pixels, whether they change or not.
 			data[0] = waveformByte(_HIGH, _LOW, _HIGH, _LOW);
 			data[16] = time_normal;	// timing
-
-			if (_model == k_epd_CFAP122250A00213) {	// FIXME ZKA
-				//data[0] = 0x18;
-				data[16] = 0x0F;
-				data[17] = 0x01;
-			}
-
 		}
 		break;
 
@@ -751,9 +763,6 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 
 			data[16] = time_inverse;	// Inverted image: short flash
 			data[17] = time_normal;	// Normal image: apply longer
-			if (_model == k_epd_CFAP122250A00213) {
-				data[18] = 0x01;
-			}
 		}
 		break;
 
@@ -916,39 +925,11 @@ void FancyEPD::_sendWindow()
 		(uint8_t)(yMin),
 		(uint8_t)(yMax)
 	};
-
-	if (_model == k_epd_E2215CS062) {
-		_sendData(0x45, data_y, 2);
-
-	} else if (_model == k_epd_CFAP122250A00213) {
-		uint8_t data_y16[] = {
-			// Inverted Y  :(  Because we can't seem to draw
-			// normally (inc X, inc Y) from Y==0.
-			(uint8_t)(yMin & 0xff),
-			//(uint8_t)(yMax >> 8),
-			(uint8_t)(yMax & 0xff),
-			//(uint8_t)(yMin >> 8),
-		};
-		_sendData(0x45, data_y16, 2);
-	}
+	_sendData(0x45, data_y, 2);
 
 	// XY counter
-	if (_model == k_epd_E2215CS062) {
-		_sendData(0x4E, &data_x[0], 1);
-		_sendData(0x4F, &data_y[0], 1);
-
-	} else if (_model == k_epd_CFAP122250A00213) {
-		// FIXME: 2nd byte is not used
-		uint8_t data16[] = {0, 0};
-		//data16[0] = ((WIDTH + 7) >> 3) - 1;
-		_sendData(0x4E, data16, 1);
-
-		/*
-		data16[0] = (yMax & 0xff);
-		data16[1] = yMax >> 8;
-		*/
-		_sendData(0x4F, data16, 1);
-	}
+	_sendData(0x4E, &data_x[0], 1);
+	_sendData(0x4F, &data_y[0], 1);
 }
 
 void FancyEPD::_applyRotationForBuffer(int16_t * x, int16_t * y)
