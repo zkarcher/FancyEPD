@@ -198,6 +198,7 @@ void loop_images() {
 	if (DO_SERIAL) Serial.println("next: no_blink");
 
 	if (DO_ROTATION) epd.setRotation(0);
+	epd.setBorderColor(0xff);	// black
 	drawCircles();
 	drawLabel("Update:\n   no_blink");
 	epd.update(k_update_no_blink);

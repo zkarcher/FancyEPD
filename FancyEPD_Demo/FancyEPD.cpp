@@ -661,11 +661,14 @@ void FancyEPD::_sendDataEntryMode()
 {
 	uint8_t data[] = {0x03};
 
+	/*
 	if (_model == k_epd_CFAP122250A00213) {
 		// Y decrement, X increment
 		// Firmware bug?: Can't start drawing on row #0 :(
+		// Also can't get X decrement working.
 		data[0] = 0x01;
 	}
+	*/
 
 	_sendData(0x11, data, 1);
 }
@@ -733,10 +736,11 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 			data[16] = time_normal;	// timing
 
 			if (_model == k_epd_CFAP122250A00213) {	// FIXME ZKA
-				data[0] = 0x18;
+				//data[0] = 0x18;
 				data[16] = 0x0F;
 				data[17] = 0x01;
 			}
+
 		}
 		break;
 
@@ -920,12 +924,12 @@ void FancyEPD::_sendWindow()
 		uint8_t data_y16[] = {
 			// Inverted Y  :(  Because we can't seem to draw
 			// normally (inc X, inc Y) from Y==0.
-			(uint8_t)(yMax & 0xff),
-			(uint8_t)(yMax >> 8),
 			(uint8_t)(yMin & 0xff),
-			(uint8_t)(yMin >> 8),
+			//(uint8_t)(yMax >> 8),
+			(uint8_t)(yMax & 0xff),
+			//(uint8_t)(yMin >> 8),
 		};
-		_sendData(0x45, data_y16, 4);
+		_sendData(0x45, data_y16, 2);
 	}
 
 	// XY counter
@@ -934,12 +938,16 @@ void FancyEPD::_sendWindow()
 		_sendData(0x4F, &data_y[0], 1);
 
 	} else if (_model == k_epd_CFAP122250A00213) {
+		// FIXME: 2nd byte is not used
 		uint8_t data16[] = {0, 0};
+		//data16[0] = ((WIDTH + 7) >> 3) - 1;
 		_sendData(0x4E, data16, 1);
 
+		/*
 		data16[0] = (yMax & 0xff);
 		data16[1] = yMax >> 8;
-		_sendData(0x4F, data16, 2);
+		*/
+		_sendData(0x4F, data16, 1);
 	}
 }
 
