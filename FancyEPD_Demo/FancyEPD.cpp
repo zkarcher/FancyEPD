@@ -136,7 +136,7 @@ bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
 			// Power on
 			_sendData(0x04, NULL, 0);
 
-			// Panel setting: run, booster on, scan right, scan down, blk+white only, LUT from OTP
+			// Panel setting: run, booster on, scan right, scan down, blk+white only, LUT from register
 			data[0] = 0x97;
 			if (_model == k_epd_CFAP128296D00290) {
 				data[0] = 0x83;	// blk+red+white
@@ -592,14 +592,18 @@ void FancyEPD::_softwareSPI(uint8_t data) {
 }
 
 void FancyEPD::_sendData(uint8_t command, uint8_t * data, uint16_t len) {
+	const bool DEBUG_BUSY = false;
+
 	// Ensure the busy pin is LOW
-	Serial.print("Wait...");
+	if (DEBUG_BUSY) Serial.print("Wait...");
+
 	if (_driver == k_driver_IL3895) {
 		while (digitalRead(_bs) == HIGH) {};
 	} else if (_driver == k_driver_CFAP128296) {
 		while (digitalRead(_bs) == LOW) {};
 	}
-	Serial.println(" OK");
+
+	if (DEBUG_BUSY) Serial.println(" OK");
 
 	// 1s / 250ns clock cycle time == 4,000,000 Hz
 	if (_hardwareSPI) {
@@ -770,8 +774,60 @@ void FancyEPD::_sendTemperatureSensor()
 // time_normal, time_inverse: optional overrides
 void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uint8_t time_inverse)
 {
-	// FIXME ZKA: waveforms for CrystalFontz 128x296
-	if (_driver != k_driver_IL3895) return;
+	// FIXME ZKA: Trying to reverse-engineer CrystalFontz LUTs
+	if (_driver == k_driver_CFAP128296) {
+		uint8_t lut_size = 42;
+		uint8_t data[lut_size];
+
+		// Lookup table from OTP or register?
+		data[0] = 0b10110111;
+
+		if (_model == k_epd_CFAP128296D00290) {
+			data[0] = 0x83;	// blk+red+white
+		}
+
+		if (update_type == k_update_builtin_refresh) {
+			data[0] &= 0b11011111;	// Flip the bit, use LUT OTP
+		}
+
+		_sendData(0x00, data, 1);
+
+		// Builtin refresh? It's all set to go!
+		if (update_type == k_update_builtin_refresh) return;
+
+		// LUT is 7 consecutive structures, 6 bytes each.
+		//
+		// struct[0]  : 0 b 11 22 33 44, each bit pair is a color:
+		//		00==VCOM (no change), 01==white, 10==black, 11==?
+		// struct[1-4]: Time (in cycles?) each color is applied
+		// struct[5]  : Number of times to repeat this structure
+		//
+		// This is interesting, it implies that each
+		// pixel transition can have different timing(s)
+		// compared to other transitions. Test this? :)
+
+		memset(data, 0, lut_size);
+		data[0] = 0b01000000;	// data[1]: go white
+		data[1] = 99;	// timing
+		data[5] = 1;	// repeat this structure 1 time
+
+		// White -> white
+		_sendData(0x21, data, lut_size);
+
+		// Black -> white
+		_sendData(0x22, data, lut_size);
+
+		// Set color to black:
+		data[0] = 0b10000000;	// data[1]: go black
+
+		// White -> black
+		_sendData(0x23, data, lut_size);
+
+		// Black -> black
+		_sendData(0x24, data, lut_size);
+
+		return;
+	}
 
 	uint8_t lut_size = 29;
 	if (_model == k_epd_CFAP122250A00213) {
