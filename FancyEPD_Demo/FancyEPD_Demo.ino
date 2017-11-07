@@ -3,7 +3,7 @@
 #include "FancyEPD.h"
 //#include "FancyEPD_Demo_images.h"
 //#include "compression_test.h"
-//#include "crystal_fontz_test.h"
+#include "crystal_fontz_test.h"
 
 #define DELAY_BETWEEN_IMAGES_MS       (5 * 1000)
 #define DO_ROTATION                   (true)
@@ -57,15 +57,15 @@ void setup() {
 void loop() {
 	//loop_boxes();
 	//loop_anim();
-	loop_shapes();
-	//loop_compression_test();
+	//loop_shapes();
+	loop_compression_test();
 }
 
 void loop_compression_test() {
 	epd.setRotation(0);
 	epd.setBorderColor(0xff);	// black
 
-	//uint16_t err = epd.updateWithCompressedImage(moth);
+	uint16_t err = epd.updateWithCompressedImage(michael);
 
 	/*
 	if (err) {
@@ -166,7 +166,6 @@ void loop_anim() {
 }
 
 void loop_shapes() {
-	/*
 	if (DO_SERIAL) Serial.println("next: builtin");
 
 	if (DO_ROTATION) epd.setRotation(0);
@@ -175,9 +174,7 @@ void loop_shapes() {
 	epd.setBorderColor(0x00);	// white
 	epd.update(k_update_builtin_refresh);
 	delay(DELAY_BETWEEN_IMAGES_MS);
-	*/
 
-	/*
 	if (DO_SERIAL) Serial.println("next: quick refresh");
 
 	if (DO_ROTATION) epd.setRotation(1);
@@ -185,18 +182,16 @@ void loop_shapes() {
 	drawLabel("Update:\n  quick_refresh");
 	epd.update(k_update_quick_refresh);
 	delay(DELAY_BETWEEN_IMAGES_MS);
-	*/
 
 	if (DO_SERIAL) Serial.println("next: no_blink");
 
-	if (DO_ROTATION) epd.setRotation(0);
+	if (DO_ROTATION) epd.setRotation(2);
 	epd.setBorderColor(0xff);	// black
 	drawCircles();
 	drawLabel("Update:\n   no_blink");
 	epd.update(k_update_no_blink);
 	delay(DELAY_BETWEEN_IMAGES_MS);
 
-	/*
 	if (DO_SERIAL) Serial.println("next: partial");
 
 	if (DO_ROTATION) epd.setRotation(3);
@@ -204,7 +199,6 @@ void loop_shapes() {
 	drawLabel("Update:\n    partial");
 	epd.update(k_update_partial);
 	delay(DELAY_BETWEEN_IMAGES_MS);
-	*/
 
 	/*
 	// Angel

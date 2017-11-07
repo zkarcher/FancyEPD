@@ -13,7 +13,7 @@
 typedef enum epd_model_t {
 	k_epd_none = 0,
 
-	// CrystalFontz
+	// Crystalfontz
 	k_epd_CFAP122250A00213,   //  2.13",  122  x  250
 	k_epd_CFAP128296C00290,   //  2.9",   128  x  296
 	k_epd_CFAP128296D00290,   //  2.9",   128  x  296  (blk+red)

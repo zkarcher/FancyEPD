@@ -21,7 +21,7 @@ int16_t epdWidth(epd_model_t model)
 {
 	switch (model) {
 
-		// CrystalFontz
+		// Crystalfontz
 		case k_epd_CFAP122250A00213:    return 122;
 		case k_epd_CFAP128296C00290:    return 128;
 		case k_epd_CFAP128296D00290:    return 128;
@@ -39,7 +39,7 @@ int16_t epdHeight(epd_model_t model)
 {
 	switch (model) {
 
-		// CrystalFontz
+		// Crystalfontz
 		case k_epd_CFAP122250A00213:    return 250;
 		case k_epd_CFAP128296C00290:    return 296;
 		case k_epd_CFAP128296D00290:    return 296;

@@ -611,7 +611,7 @@ void FancyEPD::_sendData(uint8_t command, uint8_t * data, uint16_t len) {
 			SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));
 
 		} else {
-			// CrystalFontz: Hangs on beginTransaction! Hmm.
+			// Crystalfontz: Hangs on beginTransaction! Hmm.
 			//SPI.beginTransaction(SPISettings(500000, MSBFIRST, SPI_MODE0));
 		}
 	}
@@ -671,6 +671,8 @@ void FancyEPD::_sendImageLayer(uint8_t layer_num, uint8_t layer_count, uint8_t n
 	uint8_t timing = 3;
 	if (_model == k_epd_CFAP122250A00213) {
 		timing = 4;
+	} else if (_driver == k_driver_CFAP128296) {
+		timing = 7;
 	}
 
 	_sendWaveforms(draw_scheme, timing);
@@ -774,7 +776,15 @@ void FancyEPD::_sendTemperatureSensor()
 // time_normal, time_inverse: optional overrides
 void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uint8_t time_inverse)
 {
-	// FIXME ZKA: Trying to reverse-engineer CrystalFontz LUTs
+	// If the waveform timing is not being sent with overrides:
+	// Apply the default or custom timing (whatever is in
+	// _timingNormal and _timingInverse).
+	if (update_type < k_update_builtin_refresh) {
+		if (time_normal == 0) time_normal = _timingNormal[update_type];
+		if (time_inverse == 0) time_inverse = _timingInverse[update_type];
+	}
+
+	// FIXME ZKA: Trying to reverse-engineer Crystalfontz LUTs
 	if (_driver == k_driver_CFAP128296) {
 		uint8_t lut_size = 42;
 		uint8_t data[lut_size];
@@ -795,6 +805,10 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 		// Builtin refresh? It's all set to go!
 		if (update_type == k_update_builtin_refresh) return;
 
+		if (update_type == k_update_INTERNAL_image_layer) {
+			if (time_normal == 0) time_normal = 3;
+		}
+
 		// LUT is 7 consecutive structures, 6 bytes each.
 		//
 		// struct[0]  : 0 b 11 22 33 44, each bit pair is a color:
@@ -804,29 +818,36 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 		//
 		// This is interesting, it implies that each
 		// pixel transition can have different timing(s)
-		// compared to other transitions. Test this? :)
+		// relative to other transitions. Test this? :)
 
 		memset(data, 0, lut_size);
-		data[0] = 0b01000000;	// data[1]: go white
-		data[1] = 99;	// timing
+		data[0] = 0b10010000;	// [1]:black [2]:white
+		data[1] = (update_type == k_update_quick_refresh) ? time_inverse : 0;
+		data[2] = time_normal;
 		data[5] = 1;	// repeat this structure 1 time
-
-		// White -> white
-		_sendData(0x21, data, lut_size);
 
 		// Black -> white
 		_sendData(0x22, data, lut_size);
 
+		// White -> white
+		if (update_type == k_update_partial) {
+			data[0] = 0x0;	// same color: don't change (VCOM)
+		}
+		_sendData(0x21, data, lut_size);
+
 		// Set color to black:
-		data[0] = 0b10000000;	// data[1]: go black
+		data[0] = 0b01100000;	// [1]:white [2]:black
 
 		// White -> black
 		_sendData(0x23, data, lut_size);
 
 		// Black -> black
+		if (update_type == k_update_partial) {
+			data[0] = 0x0;	// same color: don't change (VCOM)
+		}
 		_sendData(0x24, data, lut_size);
 
-		return;
+		return;	// exit Crystalfontz 128x296
 	}
 
 	uint8_t lut_size = 29;
@@ -836,14 +857,6 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 
 	uint8_t data[lut_size];
 	memset(data, 0, lut_size);
-
-	// If the waveform timing is not being sent with overrides:
-	// Apply the default or custom timing (whatever is in
-	// _timingNormal and _timingInverse).
-	if (update_type < k_update_builtin_refresh) {
-		if (time_normal == 0) time_normal = _timingNormal[update_type];
-		if (time_inverse == 0) time_inverse = _timingInverse[update_type];
-	}
 
 	switch (update_type) {
 		case k_update_partial:
