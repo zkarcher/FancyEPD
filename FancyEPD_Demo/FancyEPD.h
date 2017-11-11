@@ -81,13 +81,14 @@ public:
 
 	uint8_t * getBuffer();
 	uint32_t getBufferSize();
+	uint32_t getColorChannelSize();
 	void clearBuffer(uint8_t color = 0);
 
 	bool getAnimationMode();
 	void setAnimationMode(bool b);
 	void markDisplayDirty();
 	void markDisplayClean();
-	bool getPixel(int16_t x, int16_t y);
+	uint16_t getPixel(int16_t x, int16_t y);
 	void drawPixel(int16_t x, int16_t y, uint16_t color);
 	void setBorderColor(uint8_t color);
 
@@ -111,6 +112,7 @@ public:
 protected:
 	epd_model_t _model;
 	epd_driver_t _driver;
+	uint8_t _colorChannels;
 	uint32_t _d0, _d1, _cs, _dc, _rs, _bs;
 	uint8_t _temperature;
 	uint8_t _borderColor, _borderBit;

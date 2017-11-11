@@ -53,4 +53,14 @@ int16_t epdHeight(epd_model_t model)
 	return 0;	// not found
 }
 
+uint8_t colorChannelsForModel(epd_model_t model)
+{
+	switch (model) {
+		case k_epd_CFAP128296D00290:    return 2;	// blk+red
+		default: break;
+	}
+
+	return 1;
+}
+
 #endif

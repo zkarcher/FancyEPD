@@ -44,6 +44,7 @@ FancyEPD::FancyEPD(
 {
 	_model = model;
 	_driver = modelDriver(model);
+	_colorChannels = colorChannelsForModel(model);
 	_cs = cs;	// Chip select
 	_dc = dc;	// Data/command
 	_rs = rs;	// Register select
@@ -139,7 +140,7 @@ bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
 			// Panel setting: run, booster on, scan right, scan down, blk+white only, LUT from register
 			data[0] = 0x97;
 			if (_model == k_epd_CFAP128296D00290) {
-				data[0] = 0x83;	// blk+red+white
+				data[0] &= 0b11101111;	// flip bit for blk+red+white
 			}
 			_sendData(0x00, data, 1);
 
@@ -152,7 +153,7 @@ bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
 			// VCOM and data interval settings
 			data[0] = 0x97;
 			if (_model == k_epd_CFAP128296D00290) {
-				data[0] = 0x87;
+				data[0] = 0b10000111;
 			}
 			_sendData(0x50, data, 1);
 		}
@@ -170,6 +171,11 @@ uint8_t * FancyEPD::getBuffer()
 }
 
 uint32_t FancyEPD::getBufferSize()
+{
+	return getColorChannelSize() * _colorChannels;
+}
+
+uint32_t FancyEPD::getColorChannelSize()
 {
 	// Assumes 1-bit buffer.
 	int16_t WIDTH_BYTES = ((WIDTH + 7) >> 3);
@@ -217,15 +223,29 @@ void FancyEPD::markDisplayClean()
 	};
 }
 
-bool FancyEPD::getPixel(int16_t x, int16_t y)
+uint16_t FancyEPD::getPixel(int16_t x, int16_t y)
 {
 	_applyRotationForBuffer(&x, &y);
 
-	int16_t xByte = x >> 3;
-	int16_t bytesPerRow = (WIDTH + 7) >> 3;
-	uint8_t *ptr = &_buffer[y * bytesPerRow + xByte];
+	uint16_t xByte = x >> 3;
+	uint16_t bytesPerRow = (WIDTH + 7) >> 3;
+	uint16_t posOffset = y * bytesPerRow + xByte;
 
-	return (*ptr) & (0x80 >> (x & 0x7)) ? true : false;
+	uint16_t out = 0x0;
+	for (uint8_t c = 0; c < _colorChannels; c++) {
+		// 2-channel board: red data is listed after black data.
+		uint32_t channelOffset = getColorChannelSize() * c;
+
+		// Pointer to the byte containing the pixel,
+		// within the correct color channel.
+		uint8_t *ptr = &_buffer[channelOffset + posOffset];
+
+		if ((*ptr) & (0x80 >> (x & 0x7))) {
+			out |= (0x1 << c);
+		}
+	}
+
+	return out;
 }
 
 // Override Adafruit_GFX basic function for setting pixels
@@ -237,13 +257,26 @@ void FancyEPD::drawPixel(int16_t x, int16_t y, uint16_t color)
 
 	int16_t xByte = x >> 3;
 	int16_t bytesPerRow = (WIDTH + 7) >> 3;
-	uint8_t *ptr = &_buffer[y * bytesPerRow + xByte];
 
 	// Set the bit color
-	if (color) {
-		*ptr |= 0x80 >> (x & 0x7);
-	} else {
-		*ptr &= ~(0x80 >> (x & 0x7));
+	for (uint8_t c = 0; c < _colorChannels; c++) {
+		uint16_t channelOffset = getColorChannelSize() * c;
+		uint8_t *ptr = &_buffer[channelOffset + y * bytesPerRow + xByte];
+
+		// Default for 1 color channel: 0 == white, !0 == black
+		bool inkOn = (bool)(color);
+
+		// Multiple color channels use bitmask for colors:
+		// 0x1 -> color channel #0, 0x2 -> #1, 0x4 -> #2, etc
+		if (_colorChannels >= 2) {
+			inkOn = (0x1 << c) & color;
+		}
+
+		if (inkOn) {
+			*ptr |= 0x80 >> (x & 0x7);
+		} else {
+			*ptr &= ~(0x80 >> (x & 0x7));
+		}
 	}
 
 	_window.xMin = min(x, _window.xMin);
@@ -671,8 +704,10 @@ void FancyEPD::_sendImageLayer(uint8_t layer_num, uint8_t layer_count, uint8_t n
 	uint8_t timing = 3;
 	if (_model == k_epd_CFAP122250A00213) {
 		timing = 4;
-	} else if (_driver == k_driver_CFAP128296) {
+	} else if (_model == k_epd_CFAP128296C00290) {
 		timing = 7;
+	} else if (_model == k_epd_CFAP128296D00290) {
+		timing = 10;
 	}
 
 	_sendWaveforms(draw_scheme, timing);
@@ -784,7 +819,7 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 		if (time_inverse == 0) time_inverse = _timingInverse[update_type];
 	}
 
-	// FIXME ZKA: Trying to reverse-engineer Crystalfontz LUTs
+	// Crystalfontz 128x296
 	if (_driver == k_driver_CFAP128296) {
 		uint8_t lut_size = 42;
 		uint8_t data[lut_size];
@@ -793,7 +828,7 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 		data[0] = 0b10110111;
 
 		if (_model == k_epd_CFAP128296D00290) {
-			data[0] = 0x83;	// blk+red+white
+			data[0] &= 0b11101111;	// blk+red+white
 		}
 
 		if (update_type == k_update_builtin_refresh) {
@@ -811,8 +846,8 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 
 		// LUT is 7 consecutive structures, 6 bytes each.
 		//
-		// struct[0]  : 0 b 11 22 33 44, each bit pair is a color:
-		//		00==VCOM (no change), 01==white, 10==black, 11==?
+		// struct[0]  : 0b11223344, each bit pair is a color:
+		// 	00==no change, 01==white, 10==black, 11==grey (VCOM?)
 		// struct[1-4]: Time (in cycles?) each color is applied
 		// struct[5]  : Number of times to repeat this structure
 		//
@@ -821,31 +856,72 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 		// relative to other transitions. Test this? :)
 
 		memset(data, 0, lut_size);
-		data[0] = 0b10010000;	// [1]:black [2]:white
-		data[1] = (update_type == k_update_quick_refresh) ? time_inverse : 0;
-		data[2] = time_normal;
-		data[5] = 1;	// repeat this structure 1 time
 
-		// Black -> white
-		_sendData(0x22, data, lut_size);
+		if (_model == k_epd_CFAP128296C00290) {	// monochrome
+			data[0] = 0b10010000;	// [1]:black [2]:white
+			data[1] = (update_type == k_update_quick_refresh) ? time_inverse : 0;
+			data[2] = time_normal;
+			data[5] = 1;	// repeat this structure 1 time
 
-		// White -> white
-		if (update_type == k_update_partial) {
-			data[0] = 0x0;	// same color: don't change (VCOM)
+			// Black -> white
+			_sendData(0x22, data, lut_size);
+
+			// White -> white
+			if (update_type == k_update_partial) {
+				data[0] = 0x0;	// same color: don't change (VCOM)
+			}
+			_sendData(0x21, data, lut_size);
+
+			// Set color to black:
+			data[0] = 0b01100000;	// [1]:white [2]:black
+
+			// White -> black
+			_sendData(0x23, data, lut_size);
+
+			// Black -> black
+			if (update_type == k_update_partial) {
+				data[0] = 0x0;	// same color: don't change (VCOM)
+			}
+			_sendData(0x24, data, lut_size);
+
+		} else if (_model == k_epd_CFAP128296D00290) {	// blk+red
+			// FIXME ZKA: support update _partial
+
+			// LUT format is different. Colors:
+			// 	00==no change(?), 01==_black_ 10==_white_
+
+
+			data[1] = (update_type == k_update_quick_refresh) ? time_inverse : 0;
+			data[2] = time_normal;
+			data[5] = 1;	// repeat this structure 1 time
+
+			// LUTWW, white -> white
+			data[0] = 0x0;
+			_sendData(0x21, data, lut_size);
+
+			// LUTW, to white
+			data[0] = 0b10100000;
+			_sendData(0x23, data, lut_size);
+
+			// LUTB, black
+			data[0] = 0b10010000;
+			_sendData(0x24, data, lut_size);
+
+			// LUTR, red
+			data[0] = 0x0;
+			data[1] = 0;
+			data[2] = 0;
+			_sendData(0x22, data, lut_size);
+			/*
+			data[6] = 0b01010000;
+			data[7] = data[1];	// time inverse
+			data[8] = data[2];	// time normal
+			data[11] = data[5];	// repeat count
+			_sendData(0x22, data, lut_size);
+			*/
+			// Testing: Just try to get black working correctly
+
 		}
-		_sendData(0x21, data, lut_size);
-
-		// Set color to black:
-		data[0] = 0b01100000;	// [1]:white [2]:black
-
-		// White -> black
-		_sendData(0x23, data, lut_size);
-
-		// Black -> black
-		if (update_type == k_update_partial) {
-			data[0] = 0x0;	// same color: don't change (VCOM)
-		}
-		_sendData(0x24, data, lut_size);
 
 		return;	// exit Crystalfontz 128x296
 	}
@@ -978,7 +1054,16 @@ void FancyEPD::_sendBufferData()
 		_sendData(0x24, &_buffer[0], len);
 
 	} else if (_driver == k_driver_CFAP128296) {
-		_sendData(0x13, &_buffer[0], len);
+		if (_model == k_epd_CFAP128296C00290) {
+			_sendData(0x13, &_buffer[0], len);	// Set NEW data
+
+		} else if (_model == k_epd_CFAP128296D00290) {	// blk+red
+			uint32_t channelSize = getColorChannelSize();
+
+			_sendData(0x10, &_buffer[0], len);	// Black
+			_sendData(0x13, &_buffer[channelSize], len);	// Red
+		}
+
 		_sendData(0x11, NULL, 0);	// DATA STOP command
 	}
 

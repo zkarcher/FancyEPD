@@ -5,7 +5,7 @@
 //#include "compression_test.h"
 #include "crystal_fontz_test.h"
 
-#define DELAY_BETWEEN_IMAGES_MS       (5 * 1000)
+#define DELAY_BETWEEN_IMAGES_MS       (3 * 1000)
 #define DO_ROTATION                   (true)
 #define BLINK_PIN                     (13)
 #define DO_SERIAL                     (true)
@@ -13,7 +13,8 @@
 // Pins for project: github.com/pdp7/kicad-teensy-epaper
 //FancyEPD epd(k_epd_E2215CS062, 17, 16, 14, 15, 13, 11);	// software SPI
 //FancyEPD epd(k_epd_CFAP122250A00213, 17, 16, 14, 15);//, 13, 11);	// software SPI
-FancyEPD epd(k_epd_CFAP128296C00290, 17, 16, 14, 15);//, 13, 11);	// software SPI
+//FancyEPD epd(k_epd_CFAP128296C00290, 17, 16, 14, 15);//, 13, 11);	// software SPI
+FancyEPD epd(k_epd_CFAP128296D00290, 17, 16, 14, 15);//, 13, 11);	// software SPI
 
 //FancyEPD epd(k_epd_E2215CS062, 17, 16, 14, 15);	// hardware SPI
 
@@ -57,8 +58,8 @@ void setup() {
 void loop() {
 	//loop_boxes();
 	//loop_anim();
-	//loop_shapes();
-	loop_compression_test();
+	loop_shapes();
+	//loop_compression_test();
 }
 
 void loop_compression_test() {
@@ -166,39 +167,52 @@ void loop_anim() {
 }
 
 void loop_shapes() {
-	if (DO_SERIAL) Serial.println("next: builtin");
+	// Longer timing == probably not needed
+	//epd.setCustomTiming(k_update_quick_refresh, 50, 50);
+	epd.setCustomTiming(k_update_no_blink, 99, 99);
+	//epd.setCustomTiming(k_update_partial, 50, 50);
 
+	/*
+	if (DO_SERIAL) Serial.println("next: builtin");
 	if (DO_ROTATION) epd.setRotation(0);
-	drawCircles();
+	epd.clearBuffer();
+	drawCircles(0x1);
+	drawCircles(0x2);
 	drawLabel("Update:\n builtin_refresh");
 	epd.setBorderColor(0x00);	// white
 	epd.update(k_update_builtin_refresh);
 	delay(DELAY_BETWEEN_IMAGES_MS);
 
 	if (DO_SERIAL) Serial.println("next: quick refresh");
-
 	if (DO_ROTATION) epd.setRotation(1);
-	drawTriangles();
+	epd.clearBuffer();
+	drawTriangles(0x1);
+	drawTriangles(0x2);
 	drawLabel("Update:\n  quick_refresh");
 	epd.update(k_update_quick_refresh);
 	delay(DELAY_BETWEEN_IMAGES_MS);
+	*/
 
 	if (DO_SERIAL) Serial.println("next: no_blink");
-
 	if (DO_ROTATION) epd.setRotation(2);
 	epd.setBorderColor(0xff);	// black
-	drawCircles();
+	epd.clearBuffer();
+	drawCircles(0x1, true);
+	drawCircles(0x2, false);
 	drawLabel("Update:\n   no_blink");
 	epd.update(k_update_no_blink);
 	delay(DELAY_BETWEEN_IMAGES_MS);
 
+	/*
 	if (DO_SERIAL) Serial.println("next: partial");
-
 	if (DO_ROTATION) epd.setRotation(3);
-	drawTriangles();
+	epd.clearBuffer();
+	drawTriangles(0x1);
+	drawTriangles(0x2);
 	drawLabel("Update:\n    partial");
 	epd.update(k_update_partial);
 	delay(DELAY_BETWEEN_IMAGES_MS);
+	*/
 
 	/*
 	// Angel
@@ -219,35 +233,50 @@ void loop_shapes() {
 	*/
 }
 
-void drawCircles()
+void drawCircles(uint16_t color, bool on_top)
 {
-	epd.clearBuffer();
-	for (uint8_t i = 0; i < 5; i++) {
-		uint8_t radius = random(1, 80);
-		epd.drawCircle(random(epd.width()), random(epd.height()), radius, 0xff);
+	for (uint8_t i = 0; i < 10; i++) {
+		uint8_t radius = random(1, 30);
+		uint8_t stroke = random(1, 10);
+
+		int16_t cx = random(epd.width());
+		int16_t cy = random(epd.height() / 2);
+
+		if (!on_top) {
+			cy += epd.height() / 2;
+		}
+
+		for (uint8_t sx = 0; sx < stroke; sx++) {
+			for (uint8_t sy = 0; sy < stroke; sy++) {
+				epd.drawCircle(cx + sx, cy + sy, radius, color);
+			}
+		}
 	}
 }
 
-void drawTriangles()
+void drawTriangles(uint16_t color)
 {
-	epd.clearBuffer();
-
 	const float TRI = 3.1415926f * (2.0f / 3.0f);
 
 	for (uint8_t i = 0; i < 6; i++) {
 		int16_t x = random(epd.width());
 		int16_t y = random(epd.height());
 		int16_t r = random(2, 80);
+		uint8_t stroke = random(1, 4);
 		float theta = random(0xffffff) * (TRI / 0xffffff);
 
-		for (uint8_t p = 0; p < 3; p++) {
-			epd.drawLine(
-				x + r * cosf(theta + TRI * p),
-				y + r * sinf(theta + TRI * p),
-				x + r * cosf(theta + TRI * (p + 1)),
-				y + r * sinf(theta + TRI * (p + 1)),
-				0xff
-			);
+		for (uint8_t sx = 0; sx < stroke; sx++) {
+			for (uint8_t sy = 0; sy < stroke; sy++) {
+				for (uint8_t p = 0; p < 3; p++) {
+					epd.drawLine(
+						sx + x + r * cosf(theta + TRI * p),
+						sy + y + r * sinf(theta + TRI * p),
+						sx + x + r * cosf(theta + TRI * (p + 1)),
+						sy + y + r * sinf(theta + TRI * (p + 1)),
+						color
+					);
+				}
+			}
 		}
 	}
 }
