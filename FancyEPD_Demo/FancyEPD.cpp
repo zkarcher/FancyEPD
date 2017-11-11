@@ -890,35 +890,48 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 			// LUT format is different. Colors:
 			// 	00==no change(?), 01==_black_ 10==_white_
 
-
+			/*
 			data[1] = (update_type == k_update_quick_refresh) ? time_inverse : 0;
 			data[2] = time_normal;
-			data[5] = 1;	// repeat this structure 1 time
+			*/
+
+			data[2] = 1;
+			data[3] = 1;
+			data[4] = 1;
+			data[5] = 1;
+			data[5] = time_normal;
 
 			// LUTWW, white -> white
 			data[0] = 0x0;
 			_sendData(0x21, data, lut_size);
 
 			// LUTW, to white
-			data[0] = 0b10100000;
+			data[0] = 0b10101010;
 			_sendData(0x23, data, lut_size);
 
 			// LUTB, black
-			data[0] = 0b10010000;
+			data[0] = 0b01010101;
 			_sendData(0x24, data, lut_size);
 
 			// LUTR, red
-			data[0] = 0x0;
-			data[1] = 0;
-			data[2] = 0;
+			data[0] = 0b00000001;
 			_sendData(0x22, data, lut_size);
+
 			/*
-			data[6] = 0b01010000;
-			data[7] = data[1];	// time inverse
-			data[8] = data[2];	// time normal
-			data[11] = data[5];	// repeat count
-			_sendData(0x22, data, lut_size);
+			data[0] = 0b00011111;
+			data[1] = 3;	// time inverse
+			data[2] = 1;	// time normal
+			data[5] = 20;	// repeat count
 			*/
+
+			/*
+			offset = 12;
+			data[0 + offset] = 0b10011111;
+			data[1 + offset] = data[1];	// time inverse
+			data[2 + offset] = data[2];	// time normal
+			data[5 + offset] = data[5];	// repeat count
+			*/
+
 			// Testing: Just try to get black working correctly
 
 		}

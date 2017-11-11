@@ -169,7 +169,7 @@ void loop_anim() {
 void loop_shapes() {
 	// Longer timing == probably not needed
 	//epd.setCustomTiming(k_update_quick_refresh, 50, 50);
-	epd.setCustomTiming(k_update_no_blink, 99, 99);
+	epd.setCustomTiming(k_update_no_blink, 16, 30);
 	//epd.setCustomTiming(k_update_partial, 50, 50);
 
 	/*
