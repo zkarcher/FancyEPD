@@ -5,7 +5,7 @@
 //#include "compression_test.h"
 #include "crystal_fontz_test.h"
 
-#define DELAY_BETWEEN_IMAGES_MS       (3 * 1000)
+#define DELAY_BETWEEN_IMAGES_MS       (6 * 1000)
 #define DO_ROTATION                   (true)
 #define BLINK_PIN                     (13)
 #define DO_SERIAL                     (true)
@@ -168,8 +168,8 @@ void loop_anim() {
 
 void loop_shapes() {
 	// Longer timing == probably not needed
-	epd.setCustomTiming(k_update_quick_refresh, 40, 20);
-	epd.setCustomTiming(k_update_no_blink, 40, 20);
+	epd.setCustomTiming(k_update_quick_refresh, 50, 20);
+	epd.setCustomTiming(k_update_no_blink, 90, 20);
 	//epd.setCustomTiming(k_update_partial, 50, 50);
 
 	/*
@@ -195,14 +195,17 @@ void loop_shapes() {
 
 	if (DO_SERIAL) Serial.println("next: no_blink");
 	if (DO_ROTATION) epd.setRotation(2);
-	epd.setBorderColor(0xff);	// black
+
+	// 0b00==white, 0b01=="muddy red", 0b11==black
+	epd.setBorderColor(0b01);
+
 	epd.clearBuffer();
 	drawCircles(0x1, true);
 	drawCircles(0x2, false);
 	drawLabel("Update:\n   no_blink");
 
-	//epd.update(k_update_no_blink);
-	epd.update(k_update_quick_refresh);
+	//epd.update(k_update_no_blink); // best timing is: 90
+	epd.update(k_update_quick_refresh);	// best timing is: 50
 
 	delay(DELAY_BETWEEN_IMAGES_MS);
 

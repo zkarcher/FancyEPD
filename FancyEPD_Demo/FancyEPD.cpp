@@ -151,11 +151,14 @@ bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
 			_sendData(0x61, data, 3);
 
 			// VCOM and data interval settings
+			// Changed: This is sent in _sendBorderBit now
+			/*
 			data[0] = 0x97;
 			if (_model == k_epd_CFAP128296D00290) {
 				data[0] = 0b10000111;
 			}
 			_sendData(0x50, data, 1);
+			*/
 		}
 		break;
 
@@ -755,7 +758,13 @@ void FancyEPD::_screenWillUpdate(epd_update_t update_type)
 	_sendTemperatureSensor();
 	_sendWaveforms(update_type);
 	_sendVcomVoltage();
-	_sendBorderBit(update_type, (_borderColor & 0x80) ? 1 : 0);
+
+	uint8_t bc = _borderColor;
+	if (_colorChannels == 1) {
+		bc = (_borderColor & 0x80) ? 1 : 0;
+	}
+	_sendBorderBit(update_type, bc);
+
 	_sendWindow();
 }
 
@@ -925,14 +934,11 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 
 			// LUTR, red. This takes longer to appear, so
 			// drive this for more stages!
+			// Maybe pushing black ink first would help?
 			data[6] = 0b11111111;
-			data[8] = data[7];
-			data[9] = data[7];
+			data[11] = (do_flash ? 5 : 3);
 			if (do_flash) data[0] = 0b10000000;
 			_sendData(0x22, data, lut_size);
-
-			// Testing: Just try to get black working correctly
-
 		}
 
 		return;	// exit Crystalfontz 128x296
@@ -1025,6 +1031,35 @@ void FancyEPD::_sendBorderBit(epd_update_t update_type, uint8_t newBit)
 		}
 
 		_sendData(0x3C, &borderByte, 1);
+
+	} else if (_driver == k_driver_CFAP128296) {
+		// FIXME: Test border colors, make sure the
+		//        resultant colors are what's expected.
+
+		// From Crystalfontz code:
+		//
+	  // 1000 0111 = Crystalfontz
+	  // BBRB CCCC
+	  // |||| ||||-- CDI: 0011 = default
+	  // ||||------- DDX[0]: Black Data Polarity 1=ink, 0=white
+	  // |||-------- DDX[1]: Red Data Polarity   1=ink, 0=white
+	  // ||--------- VBD: Border Data Selection
+	  //             (by experiment for DDX = 00)
+	  //               00=really light grey
+	  //               01=muddy red
+	  //               10=white <<<<
+	  //               11=black
+
+		// VCOM and data interval settings
+		uint8_t data[] = {0x97};
+		if (_model == k_epd_CFAP128296D00290) {
+			data[0] = 0b10000111;
+		}
+
+		// Border byte
+		data[0] = (data[0] & 0x3f) | (_borderBit << 6);
+
+		_sendData(0x50, data, 1);
 	}
 
 	_borderBit = newBit;
