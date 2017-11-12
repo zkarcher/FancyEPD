@@ -889,6 +889,7 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 
 			// LUT format is different. Colors:
 			// 	00==no change(?), 01==_black_ 10==_white_
+			// 	11==red (VDHR)
 
 			/*
 			data[1] = (update_type == k_update_quick_refresh) ? time_inverse : 0;
@@ -897,46 +898,36 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 
 			// Need something in first structure, otherwise
 			// it will stop & not execute second structure.
-			uint8_t os = 0;
-			data[os + 1] = 1;
-			data[os + 2] = 0;
-			data[os + 3] = 0;
-			data[os + 4] = 0;
-			data[os + 5] = 1;
+			data[1] = 1;
+			data[5] = 1;
 
 			// Quick flash?
 			bool do_flash = (update_type == k_update_quick_refresh);
 			if (do_flash) {
-				data[os + 1] = time_inverse;
+				data[1] = time_inverse;
 			}
 
-			os = 6;
-			data[os + 1] = 1;
-			data[os + 2] = 1;
-			data[os + 3] = 1;
-			data[os + 4] = 1;
-			data[os + 5] = time_normal;
+			data[7] = time_normal;
+			data[11] = 1;
 
-			// LUTWW, white -> white (...or... no changes, B->B etc? ??? Hmm)
-			data[os + 0] = 0x0;
-			if (do_flash) {
-				data[     0] = 0b0;
-				data[os + 0] = 0b0;
-			}
+			// LUTWW, white -> white
 			_sendData(0x21, data, lut_size);
 
 			// LUTW, to white
-			data[os + 0] = 0b10101010;
+			data[6] = 0b10101010;
 			if (do_flash) data[0] = 0b01000000;
 			_sendData(0x23, data, lut_size);
 
 			// LUTB, black
-			data[os + 0] = 0b01010101;
+			data[6] = 0b01010101;
 			if (do_flash) data[0] = 0b10000000;
 			_sendData(0x24, data, lut_size);
 
-			// LUTR, red
-			data[os + 0] = 0b00000001;
+			// LUTR, red. This takes longer to appear, so
+			// drive this for more stages!
+			data[6] = 0b11111111;
+			data[8] = data[7];
+			data[9] = data[7];
 			if (do_flash) data[0] = 0b10000000;
 			_sendData(0x22, data, lut_size);
 
