@@ -936,7 +936,7 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 			// drive this for more stages!
 			// Maybe pushing black ink first would help?
 			data[6] = 0b11111111;
-			data[11] = (do_flash ? 5 : 3);
+			data[11] = (do_flash ? 5 : 4);
 			if (do_flash) data[0] = 0b10000000;
 			_sendData(0x22, data, lut_size);
 		}
