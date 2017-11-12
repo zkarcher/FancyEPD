@@ -895,42 +895,50 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 			data[2] = time_normal;
 			*/
 
-			data[2] = 1;
-			data[3] = 1;
-			data[4] = 1;
-			data[5] = 1;
-			data[5] = time_normal;
+			// Need something in first structure, otherwise
+			// it will stop & not execute second structure.
+			uint8_t os = 0;
+			data[os + 1] = 1;
+			data[os + 2] = 0;
+			data[os + 3] = 0;
+			data[os + 4] = 0;
+			data[os + 5] = 1;
 
-			// LUTWW, white -> white
-			data[0] = 0x0;
+			// Quick flash?
+			bool do_flash = (update_type == k_update_quick_refresh);
+			if (do_flash) {
+				data[os + 1] = time_inverse;
+			}
+
+			os = 6;
+			data[os + 1] = 1;
+			data[os + 2] = 1;
+			data[os + 3] = 1;
+			data[os + 4] = 1;
+			data[os + 5] = time_normal;
+
+			// LUTWW, white -> white (...or... no changes, B->B etc? ??? Hmm)
+			data[os + 0] = 0x0;
+			if (do_flash) {
+				data[     0] = 0b0;
+				data[os + 0] = 0b0;
+			}
 			_sendData(0x21, data, lut_size);
 
 			// LUTW, to white
-			data[0] = 0b10101010;
+			data[os + 0] = 0b10101010;
+			if (do_flash) data[0] = 0b01000000;
 			_sendData(0x23, data, lut_size);
 
 			// LUTB, black
-			data[0] = 0b01010101;
+			data[os + 0] = 0b01010101;
+			if (do_flash) data[0] = 0b10000000;
 			_sendData(0x24, data, lut_size);
 
 			// LUTR, red
-			data[0] = 0b00000001;
+			data[os + 0] = 0b00000001;
+			if (do_flash) data[0] = 0b10000000;
 			_sendData(0x22, data, lut_size);
-
-			/*
-			data[0] = 0b00011111;
-			data[1] = 3;	// time inverse
-			data[2] = 1;	// time normal
-			data[5] = 20;	// repeat count
-			*/
-
-			/*
-			offset = 12;
-			data[0 + offset] = 0b10011111;
-			data[1 + offset] = data[1];	// time inverse
-			data[2 + offset] = data[2];	// time normal
-			data[5 + offset] = data[5];	// repeat count
-			*/
 
 			// Testing: Just try to get black working correctly
 

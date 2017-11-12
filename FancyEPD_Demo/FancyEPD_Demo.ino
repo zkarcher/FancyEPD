@@ -168,8 +168,8 @@ void loop_anim() {
 
 void loop_shapes() {
 	// Longer timing == probably not needed
-	//epd.setCustomTiming(k_update_quick_refresh, 50, 50);
-	epd.setCustomTiming(k_update_no_blink, 16, 30);
+	epd.setCustomTiming(k_update_quick_refresh, 14, 30);
+	epd.setCustomTiming(k_update_no_blink, 14, 30);
 	//epd.setCustomTiming(k_update_partial, 50, 50);
 
 	/*
@@ -200,7 +200,10 @@ void loop_shapes() {
 	drawCircles(0x1, true);
 	drawCircles(0x2, false);
 	drawLabel("Update:\n   no_blink");
-	epd.update(k_update_no_blink);
+
+	//epd.update(k_update_no_blink);
+	epd.update(k_update_quick_refresh);
+
 	delay(DELAY_BETWEEN_IMAGES_MS);
 
 	/*
@@ -286,8 +289,9 @@ void drawLabel(String str)
 	// Background box
 	const uint8_t box_height = 20;
 	epd.fillRect(0, 0, epd.width(), box_height, 0x0);
-	epd.drawFastHLine(0, box_height, epd.width(), 0xff);
+	epd.drawFastHLine(0, box_height, epd.width(), 0x1);
 
 	epd.setCursor(0, 0);
+	epd.setTextColor(0x01);
 	epd.print(str);
 }
