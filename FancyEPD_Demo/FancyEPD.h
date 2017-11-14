@@ -92,10 +92,20 @@ public:
 	void drawPixel(int16_t x, int16_t y, uint16_t color);
 	void setBorderColor(uint8_t color);
 
-	// Waveform timing for all update types, except ones which
-	// cannot be overriden, like:  k_update_builtin_refresh.
+	// Get the waveform timing.
+	// This is the duration that voltage is applied to
+	// the screen during an update.
 	//
-	// Some updates have no inverted blink, and will ignore
+	// Some update types have no inverted state.
+	//
+	// The return value is in "cycles", not a standard
+	// unit of measurement, unfortunately.
+	uint8_t getTiming(epd_update_t);
+	uint8_t getTiming_inverse(epd_update_t);
+
+	// Set waveform timing.
+	// Some timings cannot be overriden (k_update_builtin_refresh, etc.)
+	// Some updates have no inverted state, and will ignore
 	// the time_inverse value.
 	void setCustomTiming(epd_update_t update_type, uint8_t time_normal = 0, uint8_t time_inverse = 0);
 	void restoreDefaultTiming(epd_update_t);

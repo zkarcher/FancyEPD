@@ -17,6 +17,7 @@ $(document).ready(function(){
 
 	const PALETTES = {
 		"1bpp_mono": {name:"1bpp (black and white)"},
+		"1bpc_x2":   {name:"1bpp (2 color channels)"},
 		"2bpp_mono": {name:"2bpp grayscale"},
 		"4bpp_mono": {name:"4bpp grayscale"},
 	};
@@ -103,26 +104,63 @@ $(document).ready(function(){
 		// Brightness values will be rounded off to nearest
 		// palette color (4 bits == 16 colors, etc.)
 		var lum_steps = 255;
-		if (pal === "1bpp_mono") lum_steps = 2;
-		if (pal === "2bpp_mono") lum_steps = 4;
-		if (pal === "4bpp_mono") lum_steps = 16;
+		switch (pal) {
+			case "1bpp_mono":
+			case "1bpc_x2":
+				lum_steps = 2; break;
+
+			case "2bpp_mono":
+				lum_steps = 4; break;
+
+			case "4bpp_mono":
+				lum_steps = 16; break;
+		}
+
+		// Color channel?
+		var doColor = false;
+		var hue = null;	// Range: 0 (red) .. 1 (red again)
+		switch (pal) {
+			case "1bpc_x2":
+				doColor = true;
+				hue = 0.0;	// red
+				break;
+		}
+
+		var hue_rgb = {r:0, g:0, b:0};
+		if (doColor) {
+			hue_rgb = hsv2rgb(hue, 1.0, 1.0);
+		}
 
 		var imgData = ctx.getImageData(0, 0, w, h);
 		var data = imgData.data;
 
-		// Code values will be stored here
-		var cValues = [];
-
 		// Each pixel has 4 bytes: RGBA.
 		for (var i = 0; i < data.length; i += 4) {
+			var r = data[i];
+			var g = data[i + 1];
+			var b = data[i + 2];
+
 			var lum = 0.0;	// Will have range 0..255
-			lum += data[i    ] * LUMA_R;
-			lum += data[i + 1] * LUMA_G;
-			lum += data[i + 2] * LUMA_B;
+			lum += r * LUMA_R;
+			lum += g * LUMA_G;
+			lum += b * LUMA_B;
 
 			// Round off mono to the nearest palette color
 			lum = Math.round(lum * ((lum_steps - 1) / 255.0));
-			cValues.push(lum);
+
+			// Color channels (if any)
+			var sat = 0.0;	// Will have range 0..255
+			if (doColor) {
+				var hsv = rgb2hsv(r / 255.0, g / 255.0, b / 255.0);
+
+				// Pixel saturation amount.
+				// Only activate the color channel if the pixel
+				// is within 1/3 of color wheel.
+				var delta = wrapCloseToTarget(hsv.h - hue, 1.0, 0.0);
+				if (delta < (1.0 / 6.0)) {
+					sat = Math.round(hsv.s * ((lum_steps - 1) / 255.0));
+				}
+			}
 
 			// Screen preview color
 			lum *= (255.0 / (lum_steps - 1));

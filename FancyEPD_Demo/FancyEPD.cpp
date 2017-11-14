@@ -293,6 +293,20 @@ void FancyEPD::setBorderColor(uint8_t color)
 	_borderColor = color;
 }
 
+uint8_t FancyEPD::getTiming(epd_update_t update_type)
+{
+	if (update_type >= k_update_builtin_refresh) return 0;
+
+	return _timingNormal[update_type];
+}
+
+uint8_t FancyEPD::getTiming_inverse(epd_update_t update_type)
+{
+	if (update_type >= k_update_builtin_refresh) return 0;
+
+	return _timingInverse[update_type];
+}
+
 void FancyEPD::setCustomTiming(epd_update_t update_type, uint8_t time_normal, uint8_t time_inverse)
 {
 	if (update_type >= k_update_builtin_refresh) return;
