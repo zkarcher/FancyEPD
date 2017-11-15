@@ -1,13 +1,8 @@
-
-
-function FancyEncoder(canvas, format, compression, channelData)
+function FancyEncoder(canvas, compression, bpc, channelCount, channelData)
 {
 	var self = this;
 	self.output = null;
 	self.byteCount = 0;
-
-	// "4bpp_mono"  =>  4
-	var bpp = parseInt(format.substr(0,1));
 
 	var data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
 
@@ -18,13 +13,13 @@ function FancyEncoder(canvas, format, compression, channelData)
 		// Version
 		ar.push(0x1);
 
-		// BPP of image
+		// BPC (bits per channel) of image
 		ar.push(0x1);
-		ar.push(bpp);
+		ar.push(bpc);
 
 		// Color channels per pixel
 		ar.push(0x2);
-		ar.push(1);	// Currently always monochrome
+		ar.push(channelCount);
 
 		// Canvas width & height
 		ar.push(0x3);
@@ -81,28 +76,13 @@ function FancyEncoder(canvas, format, compression, channelData)
 		}
 	}
 
-	switch (format) {
-		case "8bpp_mono":
-		case "4bpp_mono":
-		case "2bpp_mono":
-		case "1bpp_mono":
-		{
-			// These can all be handled similarly: Start with the
-			// least-significant channel. Store this either raw,
-			// or (if user specified) compressed.
-			for (var i = bpp - 1; i >= 0; i--) {
-				var binImg = BinaryImage(canvas, 0x80 >> i, {invert:true});
-				appendImageDataToArray(binImg);
-			}
+	// Start with the least-significant channel.
+	// Store this either raw, or (if user specified) compressed.
+	for (var i = bpc - 1; i >= 0; i--) {
+		for (var c = 0; c < channelCount; c++) {
+			var binImg = BinaryImageFromArray(channelData[c], 0x80 >> i, {invert:true});
+			appendImageDataToArray(binImg);
 		}
-		break;
-
-		default:
-		{
-			console.log("** FancyEncoder: unrecognized format:", format);
-		}
-		break;
-
 	}
 
 	//console.log(format, ":: LENGTH:", ar.length);

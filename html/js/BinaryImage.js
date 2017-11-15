@@ -1,4 +1,4 @@
-function BinaryImage(canvas, mask, params)
+function BinaryImageFromCanvas(canvas, mask, params)
 {
 	if (!params) params = {};
 
@@ -14,6 +14,25 @@ function BinaryImage(canvas, mask, params)
 			out[i] = (data[i * 4] & mask) ? 0 : 1;
 		} else {
 			out[i] = (data[i * 4] & mask) ? 1 : 0;
+		}
+	}
+
+	return out;
+}
+
+function BinaryImageFromArray(ar, mask, params) {
+	if (!params) params = {};
+
+	var buf = new ArrayBuffer(ar.length);
+	var out = new Uint8Array(buf);
+
+	// (data.length / 4): Read red pixel data.
+	// Skip green, blue, alpha.
+	for (var i = 0; i < ar.length; i++) {
+		if (params.invert) {
+			out[i] = (ar[i] & mask) ? 0 : 1;
+		} else {
+			out[i] = (ar[i] & mask) ? 1 : 0;
 		}
 	}
 

@@ -108,19 +108,21 @@ $(document).ready(function(){
 
 		// Brightness values will be rounded off to nearest
 		// palette color (4 bits == 16 colors, etc.)
+		var bpc = 1;
+		var channelCount = 1;
 		var lum_steps = 255;
 		switch (pal) {
 			case "1bpp_mono":
 			case "1bpc_2channels":
-				lum_steps = 2; break;
+				bpc = 1; lum_steps = 2; break;
 
 			case "2bpp_mono":
 			case "2bpc_2channels":
-				lum_steps = 4; break;
+				bpc = 2; lum_steps = 4; break;
 
 			case "4bpp_mono":
 			case "4bpc_2channels":
-				lum_steps = 16; break;
+				bpc = 4; lum_steps = 16; break;
 		}
 
 		// Color channel?
@@ -131,66 +133,82 @@ $(document).ready(function(){
 			case "2bpc_2channels":
 			case "4bpc_2channels":
 				doColor = true;
+				channelCount = 2;
 				hue = 0.0;	// red
 				break;
 		}
 
-		var hue_rgb = hsv2rgb((hue || 0), 1.0, 1.0);
+		// Color channel: Prepare RGB for rendering to screen.
+		var hueRGB = hsv2rgb((hue || 0), 1.0, 1.0);
 
 		var imgData = ctx.getImageData(0, 0, w, h);
 		var data = imgData.data;
 
-		var channelData = [[]];
-		if (doColor) channelData.push([]);
+		var channelData = [];
+		_.times(channelCount, function(){
+			channelData.push([]);
+		});
 
 		// Each pixel has 4 bytes: RGBA.
 		for (var i = 0; i < data.length; i += 4) {
-			var r = data[i];
-			var g = data[i + 1];
-			var b = data[i + 2];
+			var r = data[i] / 0xff;	// Range 0..1
+			var g = data[i + 1] / 0xff;
+			var b = data[i + 2] / 0xff;
 
-			var lum = 0.0;	// Will have range 0..255
+			var lum = 0.0;	// Range 0..1
 			lum += r * LUMA_R;
 			lum += g * LUMA_G;
 			lum += b * LUMA_B;
 
-			// Round off mono to the nearest palette color
-			lum = Math.round(lum * ((lum_steps - 1) / 255.0));
-
 			// Color channels (if any)
-			var sat = 0.0;	// Will have range 0..255
+			var sat = 0.0;
 			if (doColor) {
-				var hsv = rgb2hsv(r / 255.0, g / 255.0, b / 255.0);
+				var hsv = rgb2hsv(r, g, b);
 
 				// Pixel saturation amount.
 				// Only activate the color channel if the pixel
 				// is within 1/6 of color wheel.
-				// FIXME: Need a shaping function here?
-				//        Taper colors so orange -> 0 redness
-				//        (does not appear pink).
-				var delta = wrapCloseToTarget(hsv.h - hue, 1.0, 0.0);
-				if (Math.abs(delta) < (1.0 / 12.0)) {
-					sat = Math.round(hsv.s * (lum_steps - 1)) * 255.0;
-				}
+				var delta = Math.abs(wrapCloseToTarget(hsv.h - hue, 1.0, 0.0));
 
-				// Black and red ink cannot be active simultaneously.
-				sat = clamp(sat, 0, 0xff - lum);	// Total <= 0xff.
+				const radius = 1.0 / 12.0;
+				if (delta < radius) {
+					// Shaping function: As an image pixel moves away
+					// from target color (red -> orange), decrease
+					// the saturation.
+					var shape = delta / radius;	// 1..0..1
+					shape = shape * shape;
+					shape = 1.0 - shape;	// 0..1..0
+
+					sat = hsv.s * shape;
+
+					// sat should take precedence over lum.
+					lum += hueRGB.r * sat * LUMA_R;
+					lum += hueRGB.g * sat * LUMA_G;
+					lum += hueRGB.b * sat * LUMA_B;
+				}
 			}
 
+			// Round off mono to the nearest palette color
+			// Range: 0..lum_steps
+			lum = clamp(lum, 0, 1);
+			lum = Math.round(lum * (lum_steps - 1));
+			sat = clamp(sat, 0, 1);
+			sat = Math.round(sat * (lum_steps - 1));
+
 			// lum and sat are ready
-			channelData[0].push(lum);
-			if (channelData[1]) channelData[1].push(sat);
+			channelData[0].push(lum << (8 - bpc));
+			if (channelData[1]) channelData[1].push(sat << (8 - bpc));
 
 			// Screen preview color
-			lum *= (255.0 / (lum_steps - 1));
+			lum *= (0xff / (lum_steps - 1));
+			sat *= (0xff / (lum_steps - 1));
 			data[i] = data[i + 1] = data[i + 2] = lum;
-			data[i + 3] = 255;	// alpha
+			data[i + 3] = 0xff;	// alpha
 
 			if (sat) {
-				var mult = sat * 0xff;
-				data[i    ] += hue_rgb.r * mult;
-				data[i + 1] += hue_rgb.g * mult;
-				data[i + 2] += hue_rgb.b * mult;
+				data[i    ] -= (1.0 - hueRGB.r) * sat;
+				data[i + 1] -= (1.0 - hueRGB.g) * sat;
+				data[i + 2] -= (1.0 - hueRGB.b) * sat;
 			}
 		}
 
@@ -202,11 +220,11 @@ $(document).ready(function(){
 
 		// Encode the image as uint8_t array
 		var compression = $("#compression").is(":checked") ? 1 : 0;
-		var encoder = new FancyEncoder(canvas, format, compression, channelData);
+		var encoder = new FancyEncoder(canvas, compression, bpc, channelCount, channelData);
 
 		var rawEncoder;
 		if (compression) {
-			rawEncoder = new FancyEncoder(canvas, format, false);
+			rawEncoder = new FancyEncoder(canvas, false, bpc, channelCount, channelData);
 
 			var comprSize = encoder.byteCount;
 			var rawSize = rawEncoder.byteCount;
