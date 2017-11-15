@@ -11,24 +11,29 @@ $(document).ready(function(){
 	const SCREENS = {
 		"CFAP122250A00213": {dims: [122, 250]},
 		"CFAP128296C00290": {dims: [128, 296]},
-		"CFAP128296D00290": {dims: [128, 296], color: "blk+red"},
+		"CFAP128296D00290": {dims: [128, 296], color: "black+red"},
 		"E2215CS062": {dims: [112, 208]},
 	};
 
 	const PALETTES = {
-		"1bpp_mono": {name:"1bpp (black and white)"},
-		"1bpc_x2":   {name:"1bpp (2 color channels)"},
-		"2bpp_mono": {name:"2bpp grayscale"},
-		"4bpp_mono": {name:"4bpp grayscale"},
+		"1bpp_mono":      {name:"1bpp (black and white)"},
+		"1bpc_2channels": {name:"1bpc (2 color channels)"},
+		"2bpp_mono":      {name:"2bpp grayscale"},
+		"2bpc_2channels": {name:"2bpc (2 color channels)"},
+		"4bpp_mono":      {name:"4bpp grayscale"},
+		"4bpc_2channels": {name:"4bpc (2 color channels)"},
 	};
 
 	_.each(Object.keys(SCREENS), function(key){
-		var dims = SCREENS[key].dims;
+		var params = SCREENS[key];
+
+		var label = key + " [" + params.dims.join(" × ") + "]";
+		if (params.color) label += " " + params.color;
 
 		// Add an <option> to the dropdown
 		$('#screen').append($("<option></option>")
 			.attr("value", key)
-			.text(key + " [" + dims.join(" × ") + "]"));
+			.text(label));
 	});
 
 	_.each(Object.keys(PALETTES), function(key){
@@ -106,13 +111,15 @@ $(document).ready(function(){
 		var lum_steps = 255;
 		switch (pal) {
 			case "1bpp_mono":
-			case "1bpc_x2":
+			case "1bpc_2channels":
 				lum_steps = 2; break;
 
 			case "2bpp_mono":
+			case "2bpc_2channels":
 				lum_steps = 4; break;
 
 			case "4bpp_mono":
+			case "4bpc_2channels":
 				lum_steps = 16; break;
 		}
 
@@ -120,19 +127,21 @@ $(document).ready(function(){
 		var doColor = false;
 		var hue = null;	// Range: 0 (red) .. 1 (red again)
 		switch (pal) {
-			case "1bpc_x2":
+			case "1bpc_2channels":
+			case "2bpc_2channels":
+			case "4bpc_2channels":
 				doColor = true;
 				hue = 0.0;	// red
 				break;
 		}
 
-		var hue_rgb = {r:0, g:0, b:0};
-		if (doColor) {
-			hue_rgb = hsv2rgb(hue, 1.0, 1.0);
-		}
+		var hue_rgb = hsv2rgb((hue || 0), 1.0, 1.0);
 
 		var imgData = ctx.getImageData(0, 0, w, h);
 		var data = imgData.data;
+
+		var channelData = [[]];
+		if (doColor) channelData.push([]);
 
 		// Each pixel has 4 bytes: RGBA.
 		for (var i = 0; i < data.length; i += 4) {
@@ -155,17 +164,34 @@ $(document).ready(function(){
 
 				// Pixel saturation amount.
 				// Only activate the color channel if the pixel
-				// is within 1/3 of color wheel.
+				// is within 1/6 of color wheel.
+				// FIXME: Need a shaping function here?
+				//        Taper colors so orange -> 0 redness
+				//        (does not appear pink).
 				var delta = wrapCloseToTarget(hsv.h - hue, 1.0, 0.0);
-				if (delta < (1.0 / 6.0)) {
-					sat = Math.round(hsv.s * ((lum_steps - 1) / 255.0));
+				if (Math.abs(delta) < (1.0 / 12.0)) {
+					sat = Math.round(hsv.s * (lum_steps - 1)) * 255.0;
 				}
+
+				// Black and red ink cannot be active simultaneously.
+				sat = clamp(sat, 0, 0xff - lum);	// Total <= 0xff.
 			}
+
+			// lum and sat are ready
+			channelData[0].push(lum);
+			if (channelData[1]) channelData[1].push(sat);
 
 			// Screen preview color
 			lum *= (255.0 / (lum_steps - 1));
 			data[i] = data[i + 1] = data[i + 2] = lum;
 			data[i + 3] = 255;	// alpha
+
+			if (sat) {
+				var mult = sat * 0xff;
+				data[i    ] += hue_rgb.r * mult;
+				data[i + 1] += hue_rgb.g * mult;
+				data[i + 2] += hue_rgb.b * mult;
+			}
 		}
 
 		// Draw this to <canvas>
@@ -176,7 +202,7 @@ $(document).ready(function(){
 
 		// Encode the image as uint8_t array
 		var compression = $("#compression").is(":checked") ? 1 : 0;
-		var encoder = new FancyEncoder(canvas, format, compression);
+		var encoder = new FancyEncoder(canvas, format, compression, channelData);
 
 		var rawEncoder;
 		if (compression) {

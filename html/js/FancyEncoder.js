@@ -1,6 +1,6 @@
 
 
-function FancyEncoder(canvas, format, compression)
+function FancyEncoder(canvas, format, compression, channelData)
 {
 	var self = this;
 	self.output = null;
