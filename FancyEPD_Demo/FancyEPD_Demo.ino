@@ -168,8 +168,8 @@ void loop_anim() {
 
 void loop_shapes() {
 	// Longer timing == probably not needed
+	epd.setCustomTiming(k_update_no_blink, 60);
 	epd.setCustomTiming(k_update_quick_refresh, 50, 20);
-	epd.setCustomTiming(k_update_no_blink, 60, 20);
 	//epd.setCustomTiming(k_update_partial, 50, 50);
 
 	/*
@@ -204,8 +204,9 @@ void loop_shapes() {
 	drawCircles(0x2, false);
 	drawLabel("Update:\n   no_blink");
 
-	epd.update(k_update_no_blink); // best timing is: 90
-	//epd.update(k_update_quick_refresh);	// best timing is: 50
+	epd.update(k_update_no_blink);
+	//epd.update(k_update_quick_refresh);
+	//epd.update(k_update_builtin_refresh); // best timing is: 90
 
 	delay(DELAY_BETWEEN_IMAGES_MS);
 

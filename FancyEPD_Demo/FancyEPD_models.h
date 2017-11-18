@@ -12,6 +12,7 @@ epd_driver_t modelDriver(epd_model_t model) {
 			return k_driver_CFAP128296;
 
 		default: break;
+
 	}
 
 	return k_driver_unknown;

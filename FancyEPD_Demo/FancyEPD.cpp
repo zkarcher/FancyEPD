@@ -1179,38 +1179,46 @@ void FancyEPD::_sendUpdateActivation(epd_update_t update_type)
 
 void FancyEPD::_sendWindow()
 {
+	// When not in animation mode: Always send a full
+	// screen of data. The large transfer makes this
+	// a tiny bit slower, but images will look cleaner
+	// (less drift towards VCOM grey).
+	if (!_isAnimationMode) {
+		markDisplayDirty();
+	}
+
+	// FIXME: Implement window for 128x296 displays,
+	//        then remove this.
+	if (_driver == k_driver_CFAP128296) {
+		markDisplayDirty();
+	}
+
+	// Window for image data: Send enough pixels to cover
+	// both _prevWindow and _window, defeat double-buffering
+	// artifacts on the device
+	int16_t xMin = min(_prevWindow.xMin, _window.xMin);
+	int16_t xMax = max(_prevWindow.xMax, _window.xMax);
+	int16_t yMin = min(_prevWindow.yMin, _window.yMin);
+	int16_t yMax = max(_prevWindow.yMax, _window.yMax);
+
+	// Actual redraw area (gate multiplexing):
+	// Only need to redraw the changed area.
+	// FIXME ZKA: Why max(16) ?
+	int16_t muxLines = max(16, _window.yMax - _window.yMin + 1);
+
 	if (_driver == k_driver_IL3895) {
-		// When not in animation mode: Always send a full
-		// screen of data. Images will look cleaner
-		// (less drift towards VCOM grey) but it's slower.
-		if (!_isAnimationMode) {
-			markDisplayDirty();
-		}
-
-		int16_t muxLines = max(16, _window.yMax - _window.yMin + 1);
-
 		// Multiplexing: Only MUX the rows which have changed
 		if (_model == k_epd_E2215CS062) {
 			uint8_t data_mux[] = {(uint8_t)muxLines, 0x0};
 			_sendData(0x01, data_mux, 2);
 
 		} else if (_model == k_epd_CFAP122250A00213) {
-			// ZKA: uh oh. Is this fundamentally different from E2215CS062?
-			markDisplayDirty();
-			uint8_t data_mux[] = {(250-1)&0x00FF, (250-1)>>8, 0x00};
-			_sendData(0x01, data_mux, 3);
+			uint8_t data_mux[] = {(muxLines-1)&0x00FF, (muxLines-1)>>8};
+			_sendData(0x01, data_mux, 2);
 		}
 
 		uint8_t gateStartY = min(_window.yMin, HEIGHT - (muxLines - 1));
 		_sendData(0x0F, &gateStartY, 1);
-
-		// Window for image data: Send enough pixels to cover
-		// both _prevWindow and _window, defeat double-buffering
-		// artifacts on the device
-		int16_t xMin = min(_prevWindow.xMin, _window.xMin);
-		int16_t xMax = max(_prevWindow.xMax, _window.xMax);
-		int16_t yMin = min(_prevWindow.yMin, _window.yMin);
-		int16_t yMax = max(_prevWindow.yMax, _window.yMax);
 
 		// Window coordinates
 		uint8_t data_x[] = {
@@ -1228,6 +1236,16 @@ void FancyEPD::_sendWindow()
 		// XY counter
 		_sendData(0x4E, &data_x[0], 1);
 		_sendData(0x4F, &data_y[0], 1);
+
+	} else if (_driver == k_driver_CFAP128296) {
+		// TODO
+		// use commands:  0x90, 0x91, 0x92
+		/*
+		uint8_t data = {
+			()
+		};
+		_sendData(0x90, data, 7);
+		*/
 	}
 }
 
