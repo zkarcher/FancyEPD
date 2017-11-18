@@ -137,12 +137,15 @@ bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
 			// Power on
 			_sendData(0x04, NULL, 0);
 
+			/*
+			// CHANGED: Sending this in _sendWaveforms now
 			// Panel setting: run, booster on, scan right, scan down, blk+white only, LUT from register
-			data[0] = 0x97;
+			data[0] = 0b10110011;
 			if (_model == k_epd_CFAP128296D00290) {
 				data[0] &= 0b11101111;	// flip bit for blk+red+white
 			}
 			_sendData(0x00, data, 1);
+			*/
 
 			// Resolution setting: 1:1 please
 			data[0] = 128;
@@ -467,7 +470,7 @@ uint8_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t u
 			data += 2;
 
 		} else if ((*data) == 0x2) {	// Color channels
-			// (monochrome == 1, black+red == 2)
+			// (monochrome -> 1, black+red -> 2)
 			channels = data[1];
 			data += 2;
 
@@ -490,7 +493,9 @@ uint8_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t u
 
 	// Bail on garbage data
 	if ((bpc == 0) || (bpc > 4)) return ERROR_BPC_NOT_SUPPORTED;
-	if (channels != 1) return ERROR_CHANNELS_NOT_SUPPORTED;
+	if ((channels < 1) || (2 < channels)) {
+		return ERROR_CHANNELS_NOT_SUPPORTED;
+	}
 	if (width <= 0) return ERROR_INVALID_WIDTH;
 	if (height <= 0) return ERROR_INVALID_HEIGHT;
 	if (!img_data) return ERROR_IMAGE_DATA_NOT_FOUND;
@@ -500,7 +505,7 @@ uint8_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t u
 	// Decode & send each layer of image data
 	const uint8_t * layer_start = img_data;
 
-	for (uint8_t layer = 0; layer < bpc; layer++) {
+	for (uint8_t layer = 0; layer < bpc * channels; layer++) {
 		markDisplayClean();
 
 		decode_bytes.data = layer_start;
@@ -514,7 +519,15 @@ uint8_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t u
 		// Compression: must be a known format
 		if (cmpr > 0x2) return ERROR_UNKNOWN_COMPRESSION_FORMAT;
 
+		uint8_t c = layer % channels;	// channel (0==black, 1==red)
+		uint16_t color = (0x1) << c;
+		uint8_t drawBit = layer / channels;
+
 		int16_t x = 0, y = 0;
+
+		if (c == 0) {
+			clearBuffer(0x0);
+		}
 
 		// cmpr == 0: Raw, not compressed
 		if (cmpr == 0) {
@@ -529,7 +542,7 @@ uint8_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t u
 				x = 0;
 
 				while (x < width) {
-					drawPixel(x, y, ((*read) & mask) ? 0xff : 0x0);
+					drawPixel(x, y, ((*read) & mask) ? color : 0x0);
 
 					if (mask == 0x01) {
 						mask = 0x80;
@@ -546,7 +559,6 @@ uint8_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t u
 			}
 
 		} else if ((cmpr == 1) || (cmpr == 2)) {	// RLE
-			clearBuffer(0x0);
 			bool isOn = false;
 
 			vlq_decoder rle = (vlq_decoder){.data = &read[1], .mask = 0x80, .word_size = *read};
@@ -556,7 +568,7 @@ uint8_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t u
 
 				if (cmpr == 1) {	// 0x1: RLE, white vs black
 					while (run--) {
-						if (isOn) drawPixel(x, y, 0xff);
+						if (isOn) drawPixel(x, y, color);
 
 						x++;
 						if (x >= width) {
@@ -569,13 +581,15 @@ uint8_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t u
 					while (run--) {
 						if (y == 0) {
 							// First row: Draw black & white
-							if (isOn) drawPixel(x, y, 0xff);
+							if (isOn) drawPixel(x, y, color);
 
 						} else {
 							// Subsequent rows: same or XOR of row above
 							bool pxAbove = getPixel(x, y - 1);
-							if (pxAbove != isOn) {
-								drawPixel(x, y, 0xff);
+							bool pxAboveIsOn = (bool)(pxAbove & color);
+
+							if (pxAboveIsOn != isOn) {
+								drawPixel(x, y, color);
 							}
 						}
 
@@ -590,11 +604,15 @@ uint8_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t u
 
 				isOn = !isOn;
 			}
+
 		}
 
-		// Update screen
-		uint8_t border_mask = (0x80 >> (bpc - 1)) << layer;
-		_sendImageLayer(layer, bpc, (_borderColor & border_mask));
+		// All channels decoded for this layer?
+		// Then send the image layer.
+		if (c == (channels - 1)) {
+			uint8_t border_mask = (0x80 >> (bpc - 1)) << drawBit;
+			_sendImageLayer(drawBit, bpc, (_borderColor & border_mask));
+		}
 
 		// Advance to next layer
 		layer_start = &img_data_start[sz];
@@ -848,7 +866,7 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 		uint8_t data[lut_size];
 
 		// Lookup table from OTP or register?
-		data[0] = 0b10110111;
+		data[0] = 0b10111111;
 
 		if (_model == k_epd_CFAP128296D00290) {
 			data[0] &= 0b11101111;	// blk+red+white
