@@ -978,7 +978,7 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 			data[0] = 0b10010000;	// white, black
 			data[1] = 5;
 			data[2] = frames_b;
-			data[5] = 4;	// hmm, seems better, but duration is much longer obviously.
+			data[5] = 2;
 
 			data[6] = 0b10110000;	// white, red
 			data[7] = frames_w;
@@ -987,7 +987,7 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 
 			// And burn in the red just a bit more at the end
 			data[12] = 0b11000000;
-			data[13] = 100;
+			data[13] = 50;
 			data[17] = 1;
 			_sendData(0x22, data, lut_size);
 

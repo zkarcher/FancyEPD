@@ -5,7 +5,7 @@
 //#include "compression_test.h"
 //#include "crystal_fontz_test.h"
 
-#define DELAY_BETWEEN_IMAGES_MS       (20 * 1000)
+#define DELAY_BETWEEN_IMAGES_MS       (15 * 1000)
 #define DO_ROTATION                   (true)
 #define BLINK_PIN                     (13)
 #define DO_SERIAL                     (true)
