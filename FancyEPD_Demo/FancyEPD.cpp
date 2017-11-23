@@ -961,7 +961,7 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 			// So .... it has come to this  FIXME ZKA
 
 			// Decent, but kinda slow:
-			const uint8_t frames_b = 110;
+			const uint8_t frames_b = 80;
 			const uint8_t frames_w = 9;
 			const uint8_t frames_r = 20;
 			const uint8_t count = 5;
@@ -975,10 +975,10 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 			*/
 
 			// LUTR, red
-			data[0] = 0b10010000;	// black, white, black
-			data[1] = 20;
+			data[0] = 0b10010000;	// white, black
+			data[1] = 5;
 			data[2] = frames_b;
-			//data[5] = 2;	// hmm, seems better, but duration is much longer obviously.
+			data[5] = 4;	// hmm, seems better, but duration is much longer obviously.
 
 			data[6] = 0b10110000;	// white, red
 			data[7] = frames_w;
