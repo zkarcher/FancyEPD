@@ -5,7 +5,7 @@
 //#include "compression_test.h"
 //#include "crystal_fontz_test.h"
 
-#define DELAY_BETWEEN_IMAGES_MS       (15 * 1000)
+#define DELAY_BETWEEN_IMAGES_MS       (10 * 1000)
 #define DO_ROTATION                   (true)
 #define BLINK_PIN                     (13)
 #define DO_SERIAL                     (true)
@@ -167,7 +167,8 @@ void loop_anim() {
 }
 
 void loop_shapes() {
-	// Longer timing == probably not needed
+	// FIXME ZKA black+red needs special timing to look
+	//       correct.
 	epd.setCustomTiming(k_update_no_blink, 60);
 	epd.setCustomTiming(k_update_quick_refresh, 50, 20);
 	//epd.setCustomTiming(k_update_partial, 50, 50);
@@ -176,8 +177,8 @@ void loop_shapes() {
 	if (DO_SERIAL) Serial.println("next: builtin");
 	if (DO_ROTATION) epd.setRotation(0);
 	epd.clearBuffer();
-	drawCircles(0x1);
-	drawCircles(0x2);
+	drawCircles(0x1, true);
+	drawCircles(0x2, false);
 	drawLabel("Update:\n builtin_refresh");
 	epd.setBorderColor(0x00);	// white
 	epd.update(k_update_builtin_refresh);

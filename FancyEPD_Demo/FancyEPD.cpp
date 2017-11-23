@@ -929,8 +929,14 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 			// FIXME ZKA: support update _partial
 
 			// LUT format is different. Colors:
-			// 	00==no change(?), 01==_black_ 10==_white_
-			// 	11==red (VDHR)
+			// FIXME ZKA: Write comments here about why
+			// applying VDHR (red) doesn't immediately
+			// turn pixels red (because of the physics
+			// involved).)
+			//     00 => GND
+			//     01 => _black_ (VDH)
+			//     10 => _white_ (VDL)
+			//     11 => red (VDHR)
 
 			/*
 			data[1] = (update_type == k_update_quick_refresh) ? time_inverse : 0;
@@ -948,29 +954,59 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 				data[1] = time_inverse;
 			}
 
-			data[7] = time_normal;
-			data[11] = 1;
+			// Aww jeez.
+			// So, experimenting with trying to get
+			// red pixels to appear more quickly, here.
+			// Gonna hard-code some values.
+			// So .... it has come to this  FIXME ZKA
+
+			// Decent, but kinda slow:
+			const uint8_t frames_b = 100;
+			const uint8_t frames_w = 9;
+			const uint8_t frames_r = 20;
+			const uint8_t count = 5;
+
+			/*
+			// Decent, but kinda slow:
+			const uint8_t frames_b = 100;
+			const uint8_t frames_w = 9;
+			const uint8_t frames_r = 20;
+			const uint8_t count = 7;
+			*/
+
+			// LUTR, red
+			data[0] = 0b01000000;	// black
+			data[1] = frames_b;
+
+			data[6] = 0b10110000;	// white, red
+			data[7] = frames_w;
+			data[8] = frames_r;
+			data[11] = count;	// red count
+
+			// And burn in the red just a bit more at the end
+			data[12] = 0b11000000;
+			data[13] = 100;
+			data[17] = 1;
+			_sendData(0x22, data, lut_size);
 
 			// LUTWW, white -> white
+			data[6] = 0b10100000;
+			data[12] = data[6];
 			_sendData(0x21, data, lut_size);
 
 			// LUTW, to white
-			data[6] = 0b10101010;
-			if (do_flash) data[0] = 0b01000000;
+			data[6] = 0b10100000;
+			data[12] = data[6];
+			//if (do_flash) data[0] = 0b01000000;
 			_sendData(0x23, data, lut_size);
 
 			// LUTB, black
-			data[6] = 0b01010101;
-			if (do_flash) data[0] = 0b10000000;
+			data[0] = 0b10000000;	// white
+			data[6] = 0b01010000;
+			data[12] = data[6];
+			//if (do_flash) data[0] = 0b10000000;
 			_sendData(0x24, data, lut_size);
 
-			// LUTR, red. This takes longer to appear, so
-			// drive this for more stages!
-			// Maybe pushing black ink first would help?
-			data[6] = 0b11111111;
-			data[11] = (do_flash ? 5 : 4);
-			if (do_flash) data[0] = 0b10000000;
-			_sendData(0x22, data, lut_size);
 		}
 
 		return;	// exit Crystalfontz 128x296
