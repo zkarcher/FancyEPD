@@ -948,53 +948,70 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 
 			const uint8_t PUSH_BLK_DOWN_TIME = 9;
 
-			if (update_type == k_update_quick_refresh) {
-				// Some red pixels may have severe ghosting.
-				//
-				// Plan:
-				// {0}: Red px: Push black (and red) particles up.
-				//      Then briefly invert the entire display
-				//      (black particles descend, reds are higher).
-				// {1}: Normal image. Red pixels change slowly.
-				//      Hold 0b11 color for extra time (more reps).
+			switch (update_type) {
+				case k_update_quick_refresh:
+				case k_update_no_blink:
+				case k_update_partial:
+				{
+					bool do_blink = (update_type == k_update_quick_refresh);
+					bool is_partial = (update_type == k_update_partial);
 
-				// Creating a cohesive, high-saturation red:
-				// Alternate white and red voltage to red pixels,
-				// this pushes black farther down, lets red rise.
-				const uint8_t RW_COUNT = 5;
+					const uint8_t ALL_BLACK = 0b01010101;
+					const uint8_t ALL_WHITE = 0b10101010;
+					const uint8_t ALL_RED = 0b11111111;
 
-				// LUTR, red
-				data[0] = 0b10010000;	// white, black
-				data[1] = 5;
-				data[2] = time_inverse;
-				data[5] = 2;
+					// To create a cohesive, high-saturation red:
+					// Alternate white and red voltage to red pixels.
+					// This pushes black particles down, lets red rise.
+					uint8_t RW_COUNT = (do_blink ? 5 : 1);
 
-				data[6] = 0b10110000;	// white, red
-				data[7] = PUSH_BLK_DOWN_TIME;
-				data[8] = time_normal;
-				data[11] = RW_COUNT;
+					// LUTR, red
+					if (do_blink) {
+						data[0] = 0b10010000;
+						data[1] = 5;
+						data[2] = time_inverse;
+						data[5] = 2;
 
-				// Burn in the red at the end.
-				data[12] = 0b11000000;
-				data[13] = 50;
-				data[17] = 1;
-				_sendData(0x22, data, lut_size);
+					} else {
+						data[0] = ALL_WHITE;
+						data[1] = 10;
+						data[5] = 1;
+					}
 
-				// LUTWW, white -> white
-				data[0] = 0b01010101;	// black (x4)
-				data[6] = 0b10101010;	// white (x4)
-				data[12] = data[6];
-				_sendData(0x21, data, lut_size);
+					data[6] = 0b10110000;	// white, red
+					data[7] = PUSH_BLK_DOWN_TIME;
+					data[8] = time_normal;
+					data[11] = RW_COUNT;
 
-				// LUTW, to white
-				_sendData(0x23, data, lut_size);
+					// Burn in the red at the end.
+					if (do_blink) {
+						data[12] = ALL_RED;
+						data[13] = 50;
+						data[17] = 1;
+					}
 
-				// LUTB, black
-				data[0] = 0b10101010;	// white (x4)
-				data[6] = 0b01010000;	// black (x4)
-				data[12] = data[6];
-				_sendData(0x24, data, lut_size);
+					_sendData(0x22, data, lut_size);
 
+					// LUTWW, white -> white
+					data[0] = (do_blink ? ALL_BLACK : ALL_WHITE);
+					data[6] = (is_partial ? 0b0 : ALL_WHITE);
+					data[12] = data[6];
+					_sendData(0x21, data, lut_size);
+
+					// LUTW, to white
+					data[6] = ALL_WHITE;
+					data[12] = data[6];
+					_sendData(0x23, data, lut_size);
+
+					// LUTB, black
+					data[0] = (do_blink ? ALL_WHITE : ALL_BLACK);
+					data[6] = ALL_BLACK;
+					data[12] = data[6];
+					_sendData(0x24, data, lut_size);
+				};
+				break;
+
+				default: break;
 			}
 
 		}
