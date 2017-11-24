@@ -110,6 +110,8 @@ public:
 	void setCustomTiming(epd_update_t update_type, uint8_t time_normal = 0, uint8_t time_inverse = 0);
 	void restoreDefaultTiming(epd_update_t);
 
+	void waitUntilNotBusy();
+
 	void update(epd_update_t update_type = k_update_auto);
 	void updateWithImage(const uint8_t * data, epd_image_format_t format, epd_update_t update_type = k_update_auto);
 	uint8_t updateWithCompressedImage(const uint8_t * data, epd_update_t update_type = k_update_auto);

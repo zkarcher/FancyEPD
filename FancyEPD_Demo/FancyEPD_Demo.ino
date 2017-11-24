@@ -5,7 +5,7 @@
 //#include "compression_test.h"
 //#include "crystal_fontz_test.h"
 
-#define DELAY_BETWEEN_IMAGES_MS       (15 * 1000)
+#define DELAY_BETWEEN_IMAGES_MS       (8 * 1000)
 #define DO_ROTATION                   (true)
 #define BLINK_PIN                     (13)
 #define DO_SERIAL                     (true)
@@ -173,38 +173,45 @@ void loop_shapes() {
 	epd.setCustomTiming(k_update_no_blink, 70);
 	epd.setCustomTiming(k_update_partial, 70);
 
+	// black+red border color:
+	// 0b00==white, 0b01=="muddy red", 0b11==black
+
 	/*
 	if (DO_SERIAL) Serial.println("next: builtin");
 	if (DO_ROTATION) epd.setRotation(0);
+	epd.setBorderColor(0b0);
 	epd.clearBuffer();
 	drawCircles(0x1, true);
 	drawCircles(0x2, false);
 	drawLabel("Update:\n builtin_refresh");
 	epd.setBorderColor(0x00);	// white
 	epd.update(k_update_builtin_refresh);
+	epd.waitUntilNotBusy();
 	delay(DELAY_BETWEEN_IMAGES_MS);
+	*/
 
 	if (DO_SERIAL) Serial.println("next: quick refresh");
 	if (DO_ROTATION) epd.setRotation(1);
 	epd.clearBuffer();
-	drawTriangles(0x1);
-	drawTriangles(0x2);
+	drawCircles(0x1, true);
+	drawCircles(0x2, false);
 	drawLabel("Update:\n  quick_refresh");
 	epd.update(k_update_quick_refresh);
+	epd.waitUntilNotBusy();
 	delay(DELAY_BETWEEN_IMAGES_MS);
-	*/
 
+	/*
 	if (DO_SERIAL) Serial.println("next: no_blink");
 	if (DO_ROTATION) epd.setRotation(2);
-	// 0b00==white, 0b01=="muddy red", 0b11==black
 	epd.setBorderColor(0b01);
 	epd.clearBuffer();
 	drawCircles(0x1, true);
 	drawCircles(0x2, false);
 	drawLabel("Update:\n   no_blink");
-	epd.update(k_update_partial);
-
+	epd.update(k_update_no_blink);
+	epd.waitUntilNotBusy();
 	delay(DELAY_BETWEEN_IMAGES_MS);
+	*/
 
 	/*
 	if (DO_SERIAL) Serial.println("next: partial");
@@ -214,6 +221,7 @@ void loop_shapes() {
 	drawTriangles(0x2);
 	drawLabel("Update:\n    partial");
 	epd.update(k_update_partial);
+	epd.waitUntilNotBusy();
 	delay(DELAY_BETWEEN_IMAGES_MS);
 	*/
 

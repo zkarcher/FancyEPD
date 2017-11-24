@@ -326,6 +326,15 @@ void FancyEPD::restoreDefaultTiming(epd_update_t update_type)
 	_timingInverse[update_type] = 12;
 }
 
+void FancyEPD::waitUntilNotBusy()
+{
+	if (_driver == k_driver_IL3895) {
+		while (digitalRead(_bs) == HIGH) {};
+	} else if (_driver == k_driver_CFAP128296) {
+		while (digitalRead(_bs) == LOW) {};
+	}
+}
+
 void FancyEPD::update(epd_update_t update_type)
 {
 	if (!_canUpdate()) return;
@@ -665,11 +674,7 @@ void FancyEPD::_sendData(uint8_t command, uint8_t * data, uint16_t len) {
 	// Ensure the busy pin is LOW
 	if (DEBUG_BUSY) Serial.print("Wait...");
 
-	if (_driver == k_driver_IL3895) {
-		while (digitalRead(_bs) == HIGH) {};
-	} else if (_driver == k_driver_CFAP128296) {
-		while (digitalRead(_bs) == LOW) {};
-	}
+	waitUntilNotBusy();
 
 	if (DEBUG_BUSY) Serial.println(" OK");
 
@@ -991,6 +996,10 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 					}
 
 					_sendData(0x22, data, lut_size);
+
+					// Red needs burnin, other channels
+					// definitely need less!
+					data[17] = 20;
 
 					// LUTWW, white -> white
 					data[0] = (do_blink ? ALL_BLACK : ALL_WHITE);
