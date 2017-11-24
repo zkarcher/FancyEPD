@@ -169,8 +169,8 @@ void loop_anim() {
 void loop_shapes() {
 	// FIXME ZKA black+red needs special timing to look
 	//       correct.
-	epd.setCustomTiming(k_update_no_blink, 60);
-	epd.setCustomTiming(k_update_quick_refresh, 50, 20);
+	//epd.setCustomTiming(k_update_no_blink, 60);
+	epd.setCustomTiming(k_update_quick_refresh, 20, 80);
 	//epd.setCustomTiming(k_update_partial, 50, 50);
 
 	/*
@@ -196,17 +196,15 @@ void loop_shapes() {
 
 	if (DO_SERIAL) Serial.println("next: no_blink");
 	if (DO_ROTATION) epd.setRotation(2);
-
 	// 0b00==white, 0b01=="muddy red", 0b11==black
 	epd.setBorderColor(0b01);
-
 	epd.clearBuffer();
 	drawCircles(0x1, true);
 	drawCircles(0x2, false);
 	drawLabel("Update:\n   no_blink");
 
-	epd.update(k_update_no_blink);
-	//epd.update(k_update_quick_refresh);
+	//epd.update(k_update_no_blink);
+	epd.update(k_update_quick_refresh);
 	//epd.update(k_update_builtin_refresh); // best timing is: 90
 
 	delay(DELAY_BETWEEN_IMAGES_MS);
