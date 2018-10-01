@@ -13,8 +13,8 @@
 // Pins for project: github.com/pdp7/kicad-teensy-epaper
 //FancyEPD epd(k_epd_E2215CS062, 17, 16, 14, 15, 13, 11);	// software SPI
 //FancyEPD epd(k_epd_CFAP122250A00213, 17, 16, 14, 15);//, 13, 11);	// software SPI
-//FancyEPD epd(k_epd_CFAP128296C00290, 17, 16, 14, 15);//, 13, 11);	// software SPI
-FancyEPD epd(k_epd_CFAP128296D00290, 17, 16, 14, 15);//, 13, 11);	// software SPI
+FancyEPD epd(k_epd_CFAP128296C00290, 17, 16, 14, 15);//, 13, 11);	// software SPI
+//FancyEPD epd(k_epd_CFAP128296D00290, 17, 16, 14, 15);//, 13, 11);	// software SPI
 
 //FancyEPD epd(k_epd_E2215CS062, 17, 16, 14, 15);	// hardware SPI
 
@@ -60,9 +60,26 @@ void loop() {
 	//loop_anim();
 	loop_shapes();
 	//loop_compression_test();
+
+	// vv Hmm, this is drawing red & black circles :P I don't get it?
+	//test_grayscale_on_black_and_red_panel();
+}
+
+void test_grayscale_on_black_and_red_panel() {
+	epd.setRotation(3);
+
+	epd.fillRect(0, 0, epd.width(), epd.height(), 0x0);
+	drawCircles(0x1, true);
+	drawCircles(0x1, false);
+	drawLabel("Hello world!");
+	epd.update(k_update_builtin_refresh);
+	epd.waitUntilNotBusy();
+
+	delay(DELAY_BETWEEN_IMAGES_MS);
 }
 
 void loop_compression_test() {
+	/*
 	epd.setRotation(0);
 	epd.setBorderColor(0xff);	// black
 
@@ -77,6 +94,7 @@ void loop_compression_test() {
 	}
 
 	delay(DELAY_BETWEEN_IMAGES_MS);
+	*/
 }
 
 int8_t drawsUntilModeSwitch = 0;
@@ -169,12 +187,18 @@ void loop_anim() {
 void loop_shapes() {
 	// FIXME ZKA black+red needs special timing to look
 	//       correct.
+	/*
 	epd.setCustomTiming(k_update_quick_refresh, 20, 80);
 	epd.setCustomTiming(k_update_no_blink, 70);
 	epd.setCustomTiming(k_update_partial, 70);
+	*/
+
+
 
 	// black+red border color:
 	// 0b00==white, 0b01=="muddy red", 0b11==black
+
+
 
 	/*
 	if (DO_SERIAL) Serial.println("next: builtin");
@@ -191,14 +215,56 @@ void loop_shapes() {
 	*/
 
 	if (DO_SERIAL) Serial.println("next: quick refresh");
-	if (DO_ROTATION) epd.setRotation(1);
+	if (DO_ROTATION) epd.setRotation(3);
+	/*
 	epd.clearBuffer();
 	drawCircles(0x1, true);
 	drawCircles(0x2, false);
 	drawLabel("Update:\n  quick_refresh");
-	epd.update(k_update_quick_refresh);
-	epd.waitUntilNotBusy();
+	epd.update(k_update_builtin_refresh);
 	delay(DELAY_BETWEEN_IMAGES_MS);
+	epd.waitUntilNotBusy();
+	*/
+
+	// Fix burn-in
+	/*
+	for (uint8_t c = 0; c <= 0x2; c++) {
+		epd.fillRect(0, 0, epd.width(), epd.height(), c);
+		epd.setBorderColor(c);
+		epd.update(k_update_builtin_refresh);
+		epd.waitUntilNotBusy();
+		delay(DELAY_BETWEEN_IMAGES_MS);
+	}
+	*/
+
+/*
+epd.setCustomTiming(k_update_quick_refresh, 20, 80);
+epd.setCustomTiming(k_update_no_blink, 70);
+epd.setCustomTiming(k_update_partial, 70);
+*/
+
+	/*
+	// Clear
+	epd.fillRect(0, 0, epd.width(), epd.height(), 0x0);
+	epd.update(k_update_builtin_refresh);
+	epd.waitUntilNotBusy();
+
+	// Quick and dirty grayscale?
+	for (uint8_t b = 0; b < 4; b++) {
+		for (int16_t x = 0; x < epd.width(); x++) {
+			epd.drawFastVLine(x, 0, epd.height(), (x >> (b+1)) & 0x1);
+		}
+
+		const uint8_t TIMINGS[] = {200, 200, 200, 200};
+
+		epd.waitUntilNotBusy();
+		epd.setCustomTiming(k_update_no_blink, TIMINGS[b]);
+		epd.update(k_update_quick_refresh);
+		epd.waitUntilNotBusy();
+	}
+
+	delay(DELAY_BETWEEN_IMAGES_MS);
+	*/
 
 	/*
 	if (DO_SERIAL) Serial.println("next: no_blink");
@@ -225,18 +291,20 @@ void loop_shapes() {
 	delay(DELAY_BETWEEN_IMAGES_MS);
 	*/
 
-	/*
 	// Angel
 	if (DO_ROTATION) epd.setRotation(0);
 	epd.setBorderColor(0xff);	// black
-	epd.updateWithImage(angel_4bit, k_image_4bit_monochrome, k_update_quick_refresh);
+	epd.updateWithCompressedImage(angel_crop, k_update_quick_refresh);
 	delay(DELAY_BETWEEN_IMAGES_MS);
 
+	/*
 	// Angel
 	epd.setBorderColor(0x00);	// white
 	epd.updateWithImage(angel2_8bit, k_image_8bit_monochrome, k_update_quick_refresh);
 	delay(DELAY_BETWEEN_IMAGES_MS);
+	*/
 
+	/*
 	// Doggy
 	epd.setBorderColor(0x40);	// grey-ish
 	epd.updateWithImage(doggy_2bit, k_image_2bit_monochrome, k_update_quick_refresh);
@@ -246,16 +314,18 @@ void loop_shapes() {
 
 void drawCircles(uint16_t color, bool on_top)
 {
-	for (uint8_t i = 0; i < 10; i++) {
+	for (uint8_t i = 0; i < 20; i++) {
 		uint8_t radius = random(1, 30);
 		uint8_t stroke = random(1, 10);
 
 		int16_t cx = random(epd.width());
-		int16_t cy = random(epd.height() / 2);
+		int16_t cy = random(epd.height());// / 2);
 
+		/*
 		if (!on_top) {
 			cy += epd.height() / 2;
 		}
+		*/
 
 		for (uint8_t sx = 0; sx < stroke; sx++) {
 			for (uint8_t sy = 0; sy < stroke; sy++) {

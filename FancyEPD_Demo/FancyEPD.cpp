@@ -874,8 +874,11 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 		data[0] = 0b10111111;
 
 		if (_model == k_epd_CFAP128296D00290) {
-			data[0] &= 0b11101111;	// blk+red+white
+			//data[0] &= 0b11101111;	// blk+red+white
 		}
+
+		// FIXME: Testing grayscale on this device
+		data[0] |= 0b00010000;
 
 		if (update_type == k_update_builtin_refresh) {
 			data[0] &= 0b11011111;	// Flip the bit, use LUT OTP
@@ -933,7 +936,7 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 		} else if (_model == k_epd_CFAP128296D00290) {	// blk+red
 			// black+red: This is where the rules go out the window.
 			// Black and red particles have the same charge, but
-			// different sizes. The red particle is physically
+			// different speeds. The red particle is physically
 			// larger, and moves more slowly. The trick to producing
 			// high-quality images is manipulating the relative
 			// positions of the red and black particles.
@@ -979,7 +982,7 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 
 					} else {
 						data[0] = ALL_WHITE;
-						data[1] = 10;
+						data[1] = time_normal;
 						data[5] = 1;
 					}
 
@@ -999,23 +1002,24 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 
 					// Red needs burnin, other channels
 					// definitely need less!
-					data[17] = 20;
+					//data[17] = 20;
 
 					// LUTWW, white -> white
 					data[0] = (do_blink ? ALL_BLACK : ALL_WHITE);
 					data[6] = (is_partial ? 0b0 : ALL_WHITE);
-					data[12] = data[6];
+					data[11] = (do_blink ? 1 : 0);
+					data[12] = 0x0;//data[6];
 					_sendData(0x21, data, lut_size);
 
 					// LUTW, to white
 					data[6] = ALL_WHITE;
-					data[12] = data[6];
+					//data[12] = data[6];
 					_sendData(0x23, data, lut_size);
 
 					// LUTB, black
 					data[0] = (do_blink ? ALL_WHITE : ALL_BLACK);
 					data[6] = ALL_BLACK;
-					data[12] = data[6];
+					//data[12] = data[6];
 					_sendData(0x24, data, lut_size);
 				};
 				break;
