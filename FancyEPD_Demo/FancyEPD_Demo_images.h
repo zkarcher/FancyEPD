@@ -733,6 +733,7 @@ static const uint8_t angel_4bit[] = {
 };
 */
 
+/*
 // CrystalFontz, 128 x 296
 static const uint8_t angel_crop[] = {
 	  1,  1,  4,  2,  1,  3,129,  0,130, 40,  4,165,  1,  0,128,207,

@@ -874,11 +874,11 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 		data[0] = 0b10111111;
 
 		if (_model == k_epd_CFAP128296D00290) {
-			//data[0] &= 0b11101111;	// blk+red+white
+			data[0] &= 0b11101111;	// blk+red+white
 		}
 
-		// FIXME: Testing grayscale on this device
-		data[0] |= 0b00010000;
+		// FIXME: Testing grayscale on the blk+red device
+		//data[0] |= 0b00010000;
 
 		if (update_type == k_update_builtin_refresh) {
 			data[0] &= 0b11011111;	// Flip the bit, use LUT OTP
