@@ -5,7 +5,7 @@
 //#include "compression_test.h"
 //#include "crystal_fontz_test.h"
 
-#define DELAY_BETWEEN_IMAGES_MS       (8 * 1000)
+#define DELAY_BETWEEN_IMAGES_MS       (15 * 1000)
 #define DO_ROTATION                   (true)
 #define BLINK_PIN                     (13)
 #define DO_SERIAL                     (true)
@@ -14,7 +14,13 @@
 //FancyEPD epd(k_epd_E2215CS062, 17, 16, 14, 15, 13, 11);	// software SPI
 //FancyEPD epd(k_epd_CFAP122250A00213, 17, 16, 14, 15);//, 13, 11);	// software SPI
 //FancyEPD epd(k_epd_CFAP128296C00290, 17, 16, 14, 15);//, 13, 11);	// software SPI
-FancyEPD epd(k_epd_CFAP128296D00290, 17, 16, 14, 15);//, 13, 11);	// software SPI
+//FancyEPD epd(k_epd_CFAP128296D00290, 17, 16, 14, 15);//, 13, 11);	// software SPI
+
+// Crystalfontz 152x152 color
+//FancyEPD epd(k_epd_CFAP152152B00154, 17, 16, 14, 15);
+
+// Crystalfontz 104x212 flexible
+FancyEPD epd(k_epd_CFAP104212D00213, 17, 16, 14, 15);
 
 //FancyEPD epd(k_epd_E2215CS062, 17, 16, 14, 15);	// hardware SPI
 
@@ -28,9 +34,14 @@ void setup() {
 
 	while (!Serial) {};
 
+	Serial.println("Starting setup...");
+
+	// Random seed: Combine 8 samples of 4 LSB's, reading unused pin
 	pinMode(0, INPUT);
-	uint32_t seed = analogRead(0) * 1024;
-	seed |= analogRead(0);
+	uint32_t seed = 0;
+	for (uint8_t i = 0; i < 8; i++) {
+		seed = (seed << 4) | (analogRead(0) & 0xf);
+	}
 	randomSeed(seed);
 
 	// reset?
@@ -63,13 +74,13 @@ void setup() {
 void loop() {
 	//loop_boxes();
 	//loop_anim();
-	//loop_shapes();
+	loop_shapes();
 	//loop_compression_test();
 
 	// vv Hmm, this is drawing red & black circles :P I don't get it?
 	//test_grayscale_on_black_and_red_panel();
 
-	test_cellular_automata();
+	//test_cellular_automata();
 }
 
 uint16_t minutes = 0;
@@ -109,6 +120,8 @@ void draw_digit(uint8_t d, int16_t sz, int16_t x, int16_t y, uint16_t color) {
 }
 
 void test_cellular_automata() {
+	Serial.println("Drawing...");
+
 	epd.setRotation(2);
 
 	int16_t w = epd.width();
@@ -186,13 +199,15 @@ void test_cellular_automata() {
 	epd.update(k_update_builtin_refresh);
 	epd.waitUntilNotBusy();
 
-	delay(5000);
+	delay(DELAY_BETWEEN_IMAGES_MS);
 
 	minutes++;
 	if (minutes >= 60) {
 		minutes = 0;
 		hours = (hours + 1) % 24;
 	}
+
+	Serial.println("  Draw complete.");
 }
 
 void test_grayscale_on_black_and_red_panel() {
@@ -344,8 +359,11 @@ void loop_shapes() {
 	delay(DELAY_BETWEEN_IMAGES_MS);
 	*/
 
+	/*
 	if (DO_SERIAL) Serial.println("next: quick refresh");
 	if (DO_ROTATION) epd.setRotation(3);
+	*/
+
 	/*
 	epd.clearBuffer();
 	drawCircles(0x1, true);
@@ -421,20 +439,28 @@ epd.setCustomTiming(k_update_partial, 70);
 	delay(DELAY_BETWEEN_IMAGES_MS);
 	*/
 
-	// Angel
-	/*
-	if (DO_ROTATION) epd.setRotation(0);
-	epd.setBorderColor(0xff);	// black
-	epd.updateWithCompressedImage(angel_crop, k_update_quick_refresh);
+	if (DO_ROTATION) epd.setRotation(2);
+	//epd.updateWithCompressedImage(angel_flexible_1bit, k_update_builtin_refresh);
+	epd.updateWithImage(angel_flexible_1bit_no_compression, k_image_1bit, k_update_builtin_refresh);
 	delay(DELAY_BETWEEN_IMAGES_MS);
-	*/
 
-	/*
-	// Angel
-	epd.setBorderColor(0x00);	// white
-	epd.updateWithImage(angel2_8bit, k_image_8bit_monochrome, k_update_quick_refresh);
+	//epd.updateWithCompressedImage(zka_1bit_bug_maybe, k_update_builtin_refresh);
+	epd.updateWithCompressedImage(zka_1bit_bug_maybe, k_update_quick_refresh);
 	delay(DELAY_BETWEEN_IMAGES_MS);
-	*/
+
+	epd.updateWithImage(angel_flexible_1bit_no_compression, k_image_1bit, k_update_no_blink);
+	delay(DELAY_BETWEEN_IMAGES_MS);
+
+	// Angel
+	if (DO_ROTATION) epd.setRotation(2);
+	epd.setBorderColor(0xff);	// black
+	epd.updateWithCompressedImage(angel_flexible, k_update_quick_refresh);
+	delay(DELAY_BETWEEN_IMAGES_MS);
+
+	// Angel 2
+	epd.setBorderColor(0x00);	// white
+	epd.updateWithCompressedImage(angel2_flexible, k_update_quick_refresh);
+	delay(DELAY_BETWEEN_IMAGES_MS);
 
 	/*
 	// Doggy

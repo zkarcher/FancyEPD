@@ -5,13 +5,21 @@ $(document).ready(function(){
 	const LUMA_G = 0.7152;
 	const LUMA_B = 0.0722;
 
+	// Color screens
+	const BLACK_AND_RED = "black+red";
+	const BLACK_AND_YELLOW = "black+yellow";
+
 	var img = null;
 	var file_name = null;
 
 	const SCREENS = {
+		"CFAP152152A00154": {dims: [152, 152], color: BLACK_AND_RED},
+		"CFAP152152B00154": {dims: [152, 152], color: BLACK_AND_YELLOW},
+		"CFAP104212D00213": {dims: [104, 212], special: "flexible"},
 		"CFAP122250A00213": {dims: [122, 250]},
 		"CFAP128296C00290": {dims: [128, 296]},
-		"CFAP128296D00290": {dims: [128, 296], color: "black+red"},
+		"CFAP128296D00290": {dims: [128, 296], color: BLACK_AND_RED},
+
 		"E2215CS062": {dims: [112, 208]},
 	};
 
@@ -29,6 +37,7 @@ $(document).ready(function(){
 
 		var label = key + " [" + params.dims.join(" × ") + "]";
 		if (params.color) label += " " + params.color;
+		if (params.special) label += " " + params.special;
 
 		// Add an <option> to the dropdown
 		$('#screen').append($("<option></option>")
@@ -134,7 +143,15 @@ $(document).ready(function(){
 			case "4bpc_2channels":
 				doColor = true;
 				channelCount = 2;
+
 				hue = 0.0;	// red
+
+				var screen = SCREENS[$('#screen').val()];
+
+				if (screen.color === BLACK_AND_YELLOW) {
+					hue = 1.0 / 6.0;	// yellow
+				}
+
 				break;
 		}
 

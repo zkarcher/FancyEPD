@@ -129,6 +129,9 @@ bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
 		}
 		break;
 
+		case k_epd_CFAP104212D00213:	// ??? correct? This display is monochrome
+		case k_epd_CFAP152152A00154:	// ??? correct?
+		case k_epd_CFAP152152B00154:	// ??? correct?
 		case k_epd_CFAP128296C00290:
 		case k_epd_CFAP128296D00290:
 		{
@@ -148,9 +151,9 @@ bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
 			*/
 
 			// Resolution setting: 1:1 please
-			data[0] = 128;
-			data[1] = 296 >> 8;
-			data[2] = 296 & 0xff;
+			data[0] = _width;
+			data[1] = _height >> 8;
+			data[2] = _height & 0xff;
 			_sendData(0x61, data, 3);
 
 			// VCOM and data interval settings
@@ -192,6 +195,14 @@ void FancyEPD::clearBuffer(uint8_t color)
 {
 	memset(_buffer, color, getBufferSize());
 	markDisplayDirty();
+}
+
+void FancyEPD::invertBuffer()
+{
+	uint32_t sz = getBufferSize();
+	for (uint32_t b = 0; b < sz; b++) {
+		_buffer[b] ^= 0xff;
+	}
 }
 
 bool FancyEPD::getAnimationMode()
@@ -348,7 +359,7 @@ void FancyEPD::update(epd_update_t update_type)
 	}
 
 	_screenWillUpdate(update_type);
-	_sendBufferData();
+	_sendBufferData(update_type);
 	_sendUpdateActivation(update_type);
 }
 
@@ -509,7 +520,15 @@ uint8_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t u
 	if (height <= 0) return ERROR_INVALID_HEIGHT;
 	if (!img_data) return ERROR_IMAGE_DATA_NOT_FOUND;
 
-	_willUpdateWithImage(update_type);
+	// Not sure how else to handle this, but:
+	// If the bit-depth matches the model's native
+	// bit-depth, AND we're drawing with default
+	// refresh, then only send update at end.
+	bool is_native_bit_depth = (bpc == 1);
+
+	if (!is_native_bit_depth) {
+		_willUpdateWithImage(update_type);
+	}
 
 	// Decode & send each layer of image data
 	const uint8_t * layer_start = img_data;
@@ -619,8 +638,17 @@ uint8_t FancyEPD::updateWithCompressedImage(const uint8_t * data, epd_update_t u
 		// All channels decoded for this layer?
 		// Then send the image layer.
 		if (c == (channels - 1)) {
-			uint8_t border_mask = (0x80 >> (bpc - 1)) << drawBit;
-			_sendImageLayer(drawBit, bpc, (_borderColor & border_mask));
+
+			if (is_native_bit_depth) {
+				// 1-bit image: It's all drawn.
+				// Use the builtin refresh or whatever.
+				update(update_type);
+
+			} else {
+				uint8_t border_mask = (0x80 >> (bpc - 1)) << drawBit;
+
+				_sendImageLayer(drawBit, bpc, (_borderColor & border_mask));
+			}
 		}
 
 		// Advance to next layer
@@ -742,19 +770,22 @@ void FancyEPD::_sendImageLayer(uint8_t layer_num, uint8_t layer_count, uint8_t n
 
 	// FIXME ZKA: support different image timings, based on layer_num and layer_count
 	uint8_t timing = 3;
+
 	if (_model == k_epd_CFAP122250A00213) {
 		timing = 4;
 	} else if (_model == k_epd_CFAP128296C00290) {
 		timing = 7;
-	} else if (_model == k_epd_CFAP128296D00290) {
-		timing = 10;
+	} else if (_model == k_epd_CFAP104212D00213) {
+		timing = 7;
+	} else if (colorChannelsForModel(_model) == 2) {
+		timing = 10;	// FIXME this looks washed out
 	}
 
 	_sendWaveforms(draw_scheme, timing);
 
 	_sendBorderBit(draw_scheme, (newBorderBit) ? 1 : 0);
 	_sendWindow();
-	_sendBufferData();
+	_sendBufferData(draw_scheme);
 	_sendUpdateActivation(draw_scheme);
 }
 
@@ -770,7 +801,7 @@ void FancyEPD::_willUpdateWithImage(epd_update_t update_type)
 		clearBuffer();
 		_screenWillUpdate(update_type);
 		_sendBorderBit(update_type, 0);	// white border
-		_sendBufferData();
+		_sendBufferData(update_type);
 		_sendUpdateActivation(update_type);
 
 	} else {
@@ -873,16 +904,17 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 		// Lookup table from OTP or register?
 		data[0] = 0b10111111;
 
-		if (_model == k_epd_CFAP128296D00290) {
+		if (update_type == k_update_builtin_refresh) {
+			data[0] &= 0b11011111;	// Flip the bit, use LUT OTP
+		}
+
+		// CrystalFontz color
+		if (colorChannelsForModel(_model) == 2) {
 			data[0] &= 0b11101111;	// blk+red+white
 		}
 
 		// FIXME: Testing grayscale on the blk+red device
 		//data[0] |= 0b00010000;
-
-		if (update_type == k_update_builtin_refresh) {
-			data[0] &= 0b11011111;	// Flip the bit, use LUT OTP
-		}
 
 		_sendData(0x00, data, 1);
 
@@ -906,7 +938,8 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 
 		memset(data, 0, lut_size);
 
-		if (_model == k_epd_CFAP128296C00290) {	// monochrome
+		// FIXME; Confirm that flexible monochrome display works here:
+		if (colorChannelsForModel(_model) == 1) {
 			data[0] = 0b10010000;	// [1]:black [2]:white
 			data[1] = (update_type == k_update_quick_refresh) ? time_inverse : 0;
 			data[2] = time_normal;
@@ -933,13 +966,13 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 			}
 			_sendData(0x24, data, lut_size);
 
-		} else if (_model == k_epd_CFAP128296D00290) {	// blk+red
+		} else if (colorChannelsForModel(_model) == 2) {
 			// black+red: This is where the rules go out the window.
 			// Black and red particles have the same charge, but
 			// different speeds. The red particle is physically
-			// larger, and moves more slowly. The trick to producing
-			// high-quality images is manipulating the relative
-			// positions of the red and black particles.
+			// larger (or has a reduced charge?), and moves more slowly.
+			// The trick to producing high-quality images is manipulating
+			// the relative positions of the red and black particles.
 			// Spoilers: It's tricky.
 
 			// Color byte is 4 sets of 2 bits:
@@ -1140,7 +1173,8 @@ void FancyEPD::_sendBorderBit(epd_update_t update_type, uint8_t newBit)
 
 		// VCOM and data interval settings
 		uint8_t data[] = {0x97};
-		if (_model == k_epd_CFAP128296D00290) {
+
+		if (colorChannelsForModel(_model) == 2) {
 			data[0] = 0b10000111;
 		}
 
@@ -1161,8 +1195,12 @@ void FancyEPD::_sendVcomVoltage()
 	}
 }
 
-void FancyEPD::_sendBufferData()
+void FancyEPD::_sendBufferData(epd_update_t update_type)
 {
+	if (isWaveformColorInverted(_model, update_type)) {
+		invertBuffer();
+	}
+
 	// To defeat double-buffering artifacts on the device:
 	// Send enough pixels to cover _prevWindow and _window.
 	int16_t xMinByte = min(_prevWindow.xMin, _window.xMin) >> 3;
@@ -1189,10 +1227,10 @@ void FancyEPD::_sendBufferData()
 		_sendData(0x24, &_buffer[0], len);
 
 	} else if (_driver == k_driver_CFAP128296) {
-		if (_model == k_epd_CFAP128296C00290) {
+		if (colorChannelsForModel(_model) == 1) {
 			_sendData(0x13, &_buffer[0], len);	// Set NEW data
 
-		} else if (_model == k_epd_CFAP128296D00290) {	// blk+red
+		} else if (colorChannelsForModel(_model) == 2) {
 			uint32_t channelSize = getColorChannelSize();
 
 			_sendData(0x10, &_buffer[0], len);	// Black
@@ -1205,6 +1243,12 @@ void FancyEPD::_sendBufferData()
 	// After sending: Swap everything back.
 	if (doArrange) {
 		_swapBufferBytes(xMinByte, yMin, xMaxByte, yMax, false);
+	}
+
+	// Undo inverted buffer, so we can continue
+	// drawing on it.
+	if (isWaveformColorInverted(_model, update_type)) {
+		invertBuffer();
 	}
 }
 

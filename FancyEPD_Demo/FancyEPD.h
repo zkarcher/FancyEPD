@@ -14,6 +14,9 @@ typedef enum epd_model_t {
 	k_epd_none = 0,
 
 	// Crystalfontz
+  k_epd_CFAP152152A00154,   //  1.54",  152  x  152  (blk+red)
+  k_epd_CFAP152152B00154,   //  1.54",  152  x  152  (blk+ylw)
+  k_epd_CFAP104212D00213,   //  2.13",  104  x  212  (flexible)
 	k_epd_CFAP122250A00213,   //  2.13",  122  x  250
 	k_epd_CFAP128296C00290,   //  2.9",   128  x  296
 	k_epd_CFAP128296D00290,   //  2.9",   128  x  296  (blk+red)
@@ -83,6 +86,7 @@ public:
 	uint32_t getBufferSize();
 	uint32_t getColorChannelSize();
 	void clearBuffer(uint8_t color = 0);
+  void invertBuffer();
 
 	bool getAnimationMode();
 	void setAnimationMode(bool b);
@@ -162,7 +166,7 @@ protected:
 	void _sendWaveforms(epd_update_t update_type, uint8_t time_normal = 0, uint8_t time_inverse = 0);
 	void _sendBorderBit(epd_update_t update_type, uint8_t newBit);
 	void _sendVcomVoltage();
-	void _sendBufferData();
+	void _sendBufferData(epd_update_t update_type);
 	void _sendUpdateActivation(epd_update_t update_type);
 	void _sendWindow();
 
