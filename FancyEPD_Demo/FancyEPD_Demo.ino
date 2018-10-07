@@ -439,6 +439,7 @@ epd.setCustomTiming(k_update_partial, 70);
 	delay(DELAY_BETWEEN_IMAGES_MS);
 	*/
 
+	/*
 	if (DO_ROTATION) epd.setRotation(2);
 	//epd.updateWithCompressedImage(angel_flexible_1bit, k_update_builtin_refresh);
 	epd.updateWithImage(angel_flexible_1bit_no_compression, k_image_1bit, k_update_builtin_refresh);
@@ -450,6 +451,7 @@ epd.setCustomTiming(k_update_partial, 70);
 
 	epd.updateWithImage(angel_flexible_1bit_no_compression, k_image_1bit, k_update_no_blink);
 	delay(DELAY_BETWEEN_IMAGES_MS);
+	*/
 
 	// Angel
 	if (DO_ROTATION) epd.setRotation(2);

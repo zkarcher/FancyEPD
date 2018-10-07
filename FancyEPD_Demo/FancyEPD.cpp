@@ -776,7 +776,11 @@ void FancyEPD::_sendImageLayer(uint8_t layer_num, uint8_t layer_count, uint8_t n
 	} else if (_model == k_epd_CFAP128296C00290) {
 		timing = 7;
 	} else if (_model == k_epd_CFAP104212D00213) {
-		timing = 7;
+		//                         MSB, , ,LSB
+		//const uint8_t TIMINGS[] = {5, 6, 6, 6};
+		const uint8_t TIMINGS[] = {4, 5, 6, 6};
+		timing = TIMINGS[(layer_count - 1) - layer_num];
+
 	} else if (colorChannelsForModel(_model) == 2) {
 		timing = 10;	// FIXME this looks washed out
 	}
@@ -899,6 +903,14 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 	// Crystalfontz 128x296
 	if (_driver == k_driver_CFAP128296) {
 		uint8_t lut_size = 42;
+
+		// Flexible panel: Supports a larger LUT,
+		// needs this data zeroed out, otherwise
+		// drawing each layer is slow.
+		if (_model == k_epd_CFAP104212D00213) {
+			lut_size = 61;
+		}
+
 		uint8_t data[lut_size];
 
 		// Lookup table from OTP or register?
@@ -945,6 +957,22 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 			data[2] = time_normal;
 			data[5] = 1;	// repeat this structure 1 time
 
+			// Special case: Flexible panel needs more
+			// dark ink, otherwise image is too light.
+			bool make_darker = (_model == k_epd_CFAP104212D00213) && (update_type == k_update_INTERNAL_image_layer);
+
+			if (make_darker) {
+				/*
+				if (data[2] < 170) {
+					data[2] += (data[2] >> 1);
+					*/
+				if (data[2] < 128) {
+					data[2] *= 2;
+				} else {
+					data[2] = 0xff;
+				}
+			}
+
 			// Black -> white
 			_sendData(0x22, data, lut_size);
 
@@ -953,6 +981,8 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 				data[0] = 0x0;	// same color: don't change (VCOM)
 			}
 			_sendData(0x21, data, lut_size);
+
+			data[2] = time_normal;	// reset
 
 			// Set color to black:
 			data[0] = 0b01100000;	// [1]:white [2]:black
