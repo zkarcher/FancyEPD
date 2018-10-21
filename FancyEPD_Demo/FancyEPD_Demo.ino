@@ -5,7 +5,7 @@
 //#include "compression_test.h"
 //#include "crystal_fontz_test.h"
 
-#define DELAY_BETWEEN_IMAGES_MS       (15 * 1000)
+#define DELAY_BETWEEN_IMAGES_MS       (10 * 1000)
 #define DO_ROTATION                   (true)
 #define BLINK_PIN                     (13)
 #define DO_SERIAL                     (true)
@@ -13,14 +13,17 @@
 // Pins for project: github.com/pdp7/kicad-teensy-epaper
 //FancyEPD epd(k_epd_E2215CS062, 17, 16, 14, 15, 13, 11);	// software SPI
 //FancyEPD epd(k_epd_CFAP122250A00213, 17, 16, 14, 15);//, 13, 11);	// software SPI
-//FancyEPD epd(k_epd_CFAP128296C00290, 17, 16, 14, 15);//, 13, 11);	// software SPI
+
+FancyEPD epd(k_epd_CFAP128296C00290, 17, 16, 14, 15, 13, 11);	// software SPI
+
+// CrystalFontz: 128 x 296 black + red
 //FancyEPD epd(k_epd_CFAP128296D00290, 17, 16, 14, 15);//, 13, 11);	// software SPI
 
 // Crystalfontz 152x152 color
 //FancyEPD epd(k_epd_CFAP152152B00154, 17, 16, 14, 15);
 
 // Crystalfontz 104x212 flexible
-FancyEPD epd(k_epd_CFAP104212D00213, 17, 16, 14, 15);
+//FancyEPD epd(k_epd_CFAP104212D00213, 17, 16, 14, 15);
 
 //FancyEPD epd(k_epd_E2215CS062, 17, 16, 14, 15);	// hardware SPI
 
@@ -44,6 +47,8 @@ void setup() {
 	}
 	randomSeed(seed);
 
+  Serial.println("Reset...");
+
 	// reset?
 	const uint8_t RESET_PIN = 6;
 	pinMode(RESET_PIN, OUTPUT);
@@ -51,6 +56,20 @@ void setup() {
 	delay(100);
 	digitalWrite(RESET_PIN, HIGH);
 	delay(100);
+
+  Serial.println("Will init...");
+
+  /*
+  while (true) {
+    int result = digitalRead(15);
+    if (result == HIGH) {
+      Serial.println("hi");
+    } else {
+      Serial.println("lo");
+    }
+    delay(1000);
+  }
+  */
 
 	// If onboard LED is blinking at 2Hz: EPD could not init.
 	// Probably not enough RAM on the microcontroller.
@@ -74,14 +93,136 @@ void setup() {
 void loop() {
 	//loop_boxes();
 	//loop_anim();
-	loop_shapes();
+	//loop_shapes();
 	//loop_compression_test();
 
 	// vv Hmm, this is drawing red & black circles :P I don't get it?
 	//test_grayscale_on_black_and_red_panel();
 
 	//test_cellular_automata();
+
+  //test_stripe_refresh();
+  //test_checkerboard_refresh();
+
+  //test_breakout_board();
+
+  test_image_layers();
 }
+
+void test_image_layers() {
+  // Framebuffer
+  int16_t w = epd.width();
+  int16_t h = epd.height();
+  uint8_t buf[w * h];
+
+  int16_t rx = random(w);
+  int16_t ry = random(h);
+
+  // Draw stuff
+  for (int16_t x = 0; x < w; x++) {
+    for (int16_t y = 0; y < h; y++) {
+      buf[y * w + x] = (x + rx) ^ (y + ry);
+    }
+  }
+
+  epd.clearBuffer();
+  epd.update(k_update_quick_refresh);
+
+  epd.setCustomTiming(k_update_no_blink, 6);
+
+  // Send each image layer
+  for (uint8_t i = 0; i < 8; i++) {
+    uint8_t mask = (0x01 << i);
+
+    for (int16_t x = 0; x < w; x++) {
+      for (int16_t y = 0; y < h; y++) {
+        epd.drawPixel(x, y, ((buf[y * w + x] & mask) ? 1 : 0));
+      }
+    }
+
+    epd.update(k_update_no_blink);
+  }
+
+  delay(DELAY_BETWEEN_IMAGES_MS);
+}
+
+void test_breakout_board() {
+  /*
+  // Hmm this is not working
+  // Compressed image drew 3 layers ?! rrr
+  epd.setRotation(2);
+  epd.updateWithImage(angel_crop, k_image_4bit_monochrome);
+  */
+
+  epd.clearBuffer();
+  drawCircles(0x1, true);
+  epd.update(k_update_builtin_refresh);
+  delay(DELAY_BETWEEN_IMAGES_MS);
+
+  epd.clearBuffer();
+  drawTriangles(0x1);
+  epd.update(k_update_builtin_refresh);
+  delay(DELAY_BETWEEN_IMAGES_MS);
+}
+
+void test_checkerboard_refresh() {
+  int16_t width = epd.width();
+  int16_t height = epd.height();
+
+  for (int16_t w = 0; w < width; w++) {
+    for (int16_t h = 0; h < height; h++) {
+      epd.drawPixel(w, h, ((w ^ h) & 4) ? 1 : 0);
+    }
+  }
+
+  epd.update(k_update_INTERNAL_blink_like_crazy);
+
+  /*
+  for (int16_t r = (width + height); r >= 2; r -= 3) {
+    epd.fillCircle(width / 2, height / 2, r, random(3));
+  }
+  */
+
+  for (int16_t h = 0; h < height; h++) {
+    //epd.drawFastHLine(0, h, width, random(3));  // color
+    epd.drawFastHLine(0, h, width, random(2));  // monochrome
+  }
+
+  //epd.update(k_update_no_blink);
+  epd.update(k_update_quick_refresh);
+
+  delay(DELAY_BETWEEN_IMAGES_MS);
+}
+
+/*
+void test_stripe_refresh() {
+  int16_t width = epd.width();
+  int16_t height = epd.height();
+
+  //const uint8_t PATTERN = 0b11001100;
+  const uint8_t PATTERN = 0b1111;
+
+  //epd.setCustomTiming(k_update_no_blink, 2, 2);
+
+  for (uint8_t r = 0; r < 3; r++) { // refresh count
+
+    for (int16_t w = 0; w < width; w++) {
+      for (int16_t h = 0; h < height; h++) {
+
+        int16_t idx = r + w + h;
+
+        uint8_t mask = 0b1 << (idx & 0b111);
+
+        epd.drawPixel(w, h, (PATTERN & mask) ? 1 : 0);
+      }
+    }
+
+    epd.update(k_update_no_blink);
+  }
+
+  delay(DELAY_BETWEEN_IMAGES_MS);
+}
+*/
 
 uint16_t minutes = 0;
 uint16_t hours = 0;
@@ -454,6 +595,7 @@ epd.setCustomTiming(k_update_partial, 70);
 	*/
 
 	// Angel
+  /*
 	if (DO_ROTATION) epd.setRotation(2);
 	epd.setBorderColor(0xff);	// black
 	epd.updateWithCompressedImage(angel_flexible, k_update_quick_refresh);
@@ -463,6 +605,7 @@ epd.setCustomTiming(k_update_partial, 70);
 	epd.setBorderColor(0x00);	// white
 	epd.updateWithCompressedImage(angel2_flexible, k_update_quick_refresh);
 	delay(DELAY_BETWEEN_IMAGES_MS);
+  */
 
 	/*
 	// Doggy
