@@ -83,13 +83,13 @@ uint8_t colorChannelsForModel(epd_model_t model)
 	return 1;
 }
 
-bool isWaveformColorInverted(epd_model_t model, epd_update_t update_type)
+bool isWaveformColorInverted(epd_driver_t driver, epd_model_t model, epd_update_t update_type)
 {
-	switch (model) {
-		case k_epd_CFAP104212D00213:
+	switch (driver) {
+    // Crystalfontz flexible panel, and others: The builtin
+    // waveforms draw an inverted image?! Oh, OK.
+		case k_driver_CFAP128296:
 		{
-			// Crystalfontz flexible panel: The builtin
-			// waveforms draw an inverted image?! Oh, OK.
 			return (update_type == k_update_builtin_refresh);
 		}
 		break;

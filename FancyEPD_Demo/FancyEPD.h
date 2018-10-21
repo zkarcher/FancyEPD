@@ -55,6 +55,7 @@ typedef enum epd_update_t {
 
 	// INTERNAL (Don't use!)
 	k_update_INTERNAL_image_layer,	// grayscale image layers
+  k_update_INTERNAL_blink_like_crazy, // testing a new way to clear for color
 
 } epd_update_t;
 
@@ -137,6 +138,7 @@ protected:
 	bool _didMallocBuffer;
 	epd_image_format_t _bufferFormat;
 	uint8_t _updatesSinceRefresh;
+  bool _obeyWaitPin;
 
 	// Animation mode: Only redraw the pixels inside _window
 	bool _isAnimationMode;
