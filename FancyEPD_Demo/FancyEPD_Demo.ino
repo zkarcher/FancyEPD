@@ -110,6 +110,8 @@ void loop() {
 }
 
 void test_image_layers() {
+  epd.setRotation(1);
+
   // Framebuffer
   int16_t w = epd.width();
   int16_t h = epd.height();
@@ -118,10 +120,47 @@ void test_image_layers() {
   int16_t rx = random(w);
   int16_t ry = random(h);
 
-  // Draw stuff
+  // Nice XOR pattern
+  /*
+  uint8_t mask = 0x1;
+  uint8_t bits = 8;
   for (int16_t x = 0; x < w; x++) {
     for (int16_t y = 0; y < h; y++) {
       buf[y * w + x] = (x + rx) ^ (y + ry);
+    }
+  }
+  */
+
+  // Mandelbrot
+  uint8_t mask = 0x10;
+  uint8_t bits = 4;
+
+  float xMult = 4.0 / w;
+  float yMult = xMult;
+
+  for (int16_t xi = 0; xi < w; xi++) {
+    for (int16_t yi = 0; yi < h; yi++) {
+      float xf = (xi - (w >> 1)) * xMult;
+      float yf = (yi - (h >> 1)) * yMult;
+
+      float real = xf;
+      float imag = yf;
+
+      // Mandelbrot. Iterations: z' = z*z + c
+      uint8_t i = 0;
+      for (; i < 16; i++) {
+        float re = (real * real) - (imag * imag) + xf;
+        float im = 2.0 * real * imag + yf;
+
+        if ((re < -2.0) || (2.0 < re)) {
+          break;
+        }
+
+        real = re;
+        imag = im;
+      }
+
+      buf[yi * w + xi] = ((15 - i) << 4);
     }
   }
 
@@ -131,9 +170,7 @@ void test_image_layers() {
   epd.setCustomTiming(k_update_no_blink, 6);
 
   // Send each image layer
-  for (uint8_t i = 0; i < 8; i++) {
-    uint8_t mask = (0x01 << i);
-
+  for (uint8_t i = 0; i < bits; i++) {
     for (int16_t x = 0; x < w; x++) {
       for (int16_t y = 0; y < h; y++) {
         epd.drawPixel(x, y, ((buf[y * w + x] & mask) ? 1 : 0));
@@ -141,6 +178,8 @@ void test_image_layers() {
     }
 
     epd.update(k_update_no_blink);
+
+    mask <<= 1;
   }
 
   delay(DELAY_BETWEEN_IMAGES_MS);
