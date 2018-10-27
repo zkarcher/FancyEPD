@@ -88,6 +88,7 @@ public:
 	uint32_t getColorChannelSize();
 	void clearBuffer(uint8_t color = 0);
   void invertBuffer();
+  void invertFirstColorChannel();
 
 	bool getAnimationMode();
 	void setAnimationMode(bool b);

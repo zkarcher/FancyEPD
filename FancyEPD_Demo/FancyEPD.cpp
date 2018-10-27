@@ -56,7 +56,7 @@ FancyEPD::FancyEPD(
 	_borderColor = 0x0;
 	_borderBit = 0x0;
 	_updatesSinceRefresh = 0xFF;
-  _obeyWaitPin = true;
+	_obeyWaitPin = true;
 	_isAnimationMode = false;
 
 	// Reset waveform timings
@@ -136,9 +136,9 @@ bool FancyEPD::init(uint8_t * optionalBuffer, epd_image_format_t bufferFormat)
 		case k_epd_CFAP128296C00290:
 		case k_epd_CFAP128296D00290:
 		{
-      // Kludge: Initial data is not being sent in the expected order,
-      // causes the wait pin to remain blocked. Unset on draw.
-      _obeyWaitPin = false;
+			// Kludge: Initial data is not being sent in the expected order,
+			// causes the wait pin to remain blocked. Unset on draw.
+			_obeyWaitPin = false;
 
 			uint8_t data[] = {0, 0, 0};
 
@@ -185,6 +185,14 @@ void FancyEPD::clearBuffer(uint8_t color)
 void FancyEPD::invertBuffer()
 {
 	uint32_t sz = getBufferSize();
+	for (uint32_t b = 0; b < sz; b++) {
+		_buffer[b] ^= 0xff;
+	}
+}
+
+void FancyEPD::invertFirstColorChannel()
+{
+	uint32_t sz = getColorChannelSize();
 	for (uint32_t b = 0; b < sz; b++) {
 		_buffer[b] ^= 0xff;
 	}
@@ -324,25 +332,25 @@ void FancyEPD::restoreDefaultTiming(epd_update_t update_type)
 
 void FancyEPD::waitUntilNotBusy()
 {
-  if (!_obeyWaitPin) {
-    return;
-  }
+	if (!_obeyWaitPin) {
+		return;
+	}
 
-  int waitOn = (_driver == k_driver_IL3895) ? HIGH : LOW;
+	int waitOn = (_driver == k_driver_IL3895) ? HIGH : LOW;
 
-  uint32_t attempts = 0;
+	uint32_t attempts = 0;
 
-  while (digitalRead(_bs) == waitOn) {
-    attempts++;
+	while (digitalRead(_bs) == waitOn) {
+		attempts++;
 
-    // Cheap escape for boards behaving poorly on startup
-    if (attempts >= 0xffffff) {
-      break;
-    }
-  }
+		// Cheap escape for boards behaving poorly on startup
+		if (attempts >= 0xfffffff) {
+			break;
+		}
+	}
 
-  Serial.print("wait attempts: ");
-  Serial.println(attempts);
+	Serial.print("wait attempts: ");
+	Serial.println(attempts);
 }
 
 void FancyEPD::update(epd_update_t update_type)
@@ -1018,9 +1026,9 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 
 			const uint8_t PUSH_BLK_DOWN_TIME = 9;
 
-      const uint8_t ALL_BLACK = 0b01010101;
-      const uint8_t ALL_WHITE = 0b10101010;
-      const uint8_t ALL_RED = 0b11111111;
+			const uint8_t ALL_BLACK = 0b01010101;
+			const uint8_t ALL_WHITE = 0b10101010;
+			const uint8_t ALL_RED = 0b11111111;
 
 			switch (update_type) {
 				case k_update_quick_refresh:
@@ -1086,26 +1094,26 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 				};
 				break;
 
-        case k_update_INTERNAL_blink_like_crazy:
-        {
-          data[0] = 0b10010000;
-          data[1] = 10; // TIMING
-          data[2] = data[1];
-          data[5] = 5; // REPEATS
+				case k_update_INTERNAL_blink_like_crazy:
+				{
+					data[0] = 0b10010000;
+					data[1] = 10; // TIMING
+					data[2] = data[1];
+					data[5] = 5; // REPEATS
 
-          _sendData(0x21, data, lut_size);  // LUTWW
-          _sendData(0x23, data, lut_size);  // LUTW, all white
+					_sendData(0x21, data, lut_size);  // LUTWW
+					_sendData(0x23, data, lut_size);  // LUTW, all white
 
-          data[0] = 0b01100000;
-          _sendData(0x24, data, lut_size);  // LUTB (black)
+					data[0] = 0b01100000;
+					_sendData(0x24, data, lut_size);  // LUTB (black)
 
-          data[0] = 0b0;
-          data[1] = 0;
-          data[2] = 0;
-          data[5] = 0;
-          _sendData(0x22, data, lut_size);  // LUTR (red/color)
-        }
-        break;
+					data[0] = 0b0;
+					data[1] = 0;
+					data[2] = 0;
+					data[5] = 0;
+					_sendData(0x22, data, lut_size);  // LUTR (red/color)
+				}
+				break;
 
 				default: break;
 			}
@@ -1209,17 +1217,17 @@ void FancyEPD::_sendBorderBit(epd_update_t update_type, uint8_t newBit)
 
 		// From Crystalfontz code:
 		//
-	  // 1000 0111 = Crystalfontz
-	  // BBRB CCCC
-	  // |||| ||||-- CDI: 0011 = default
-	  // ||||------- DDX[0]: Black Data Polarity 1=ink, 0=white
-	  // |||-------- DDX[1]: Red Data Polarity   1=ink, 0=white
-	  // ||--------- VBD: Border Data Selection
-	  //             (by experiment for DDX = 00)
-	  //               00=really light grey
-	  //               01=muddy red
-	  //               10=white <<<<
-	  //               11=black
+		// 1000 0111 = Crystalfontz
+		// BBRB CCCC
+		// |||| ||||-- CDI: 0011 = default
+		// ||||------- DDX[0]: Black Data Polarity 1=ink, 0=white
+		// |||-------- DDX[1]: Red Data Polarity   1=ink, 0=white
+		// ||--------- VBD: Border Data Selection
+		//             (by experiment for DDX = 00)
+		//               00=really light grey
+		//               01=muddy red
+		//               10=white <<<<
+		//               11=black
 
 		// VCOM and data interval settings
 		uint8_t data[] = {0x97};
@@ -1248,7 +1256,7 @@ void FancyEPD::_sendVcomVoltage()
 void FancyEPD::_sendBufferData(epd_update_t update_type)
 {
 	if (isWaveformColorInverted(_driver, _model, update_type)) {
-		invertBuffer();
+		invertFirstColorChannel();
 	}
 
 	// To defeat double-buffering artifacts on the device:
@@ -1265,9 +1273,9 @@ void FancyEPD::_sendBufferData(epd_update_t update_type)
 	// not have enough RAM. (Using Teensy LC, for example.)
 	// Instead: Arrange pixel bytes so stream starts at [0].
 	bool doArrange = (xMinByte > 0) ||
-	                 (xMaxByte < ((WIDTH - 1) >> 3)) ||
-	                 (yMin > 0) ||
-	                 (yMax < (HEIGHT - 1));
+									 (xMaxByte < ((WIDTH - 1) >> 3)) ||
+									 (yMin > 0) ||
+									 (yMax < (HEIGHT - 1));
 
 	if (doArrange) {
 		_swapBufferBytes(xMinByte, yMin, xMaxByte, yMax, true);
@@ -1298,7 +1306,7 @@ void FancyEPD::_sendBufferData(epd_update_t update_type)
 	// Undo inverted buffer, so we can continue
 	// drawing on it.
 	if (isWaveformColorInverted(_driver, _model, update_type)) {
-		invertBuffer();
+		invertFirstColorChannel();
 	}
 }
 
@@ -1326,9 +1334,9 @@ void FancyEPD::_sendUpdateActivation(epd_update_t update_type)
 	// The screen pixels now match _buffer. All clean!
 	markDisplayClean();
 
-  // Now that an update has started:
-  // Fix the CrystalFontz boot kludge: Now we can obey the wait pin
-  _obeyWaitPin = true;
+	// Now that an update has started:
+	// Fix the CrystalFontz boot kludge: Now we can obey the wait pin
+	_obeyWaitPin = true;
 }
 
 void FancyEPD::_sendWindow()
