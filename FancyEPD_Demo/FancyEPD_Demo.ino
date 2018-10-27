@@ -101,9 +101,9 @@ void loop() {
 
 	//test_cellular_automata();
 
-	test_box_refresh();
+	//test_box_refresh();
 	//test_stripe_refresh();
-	//test_checkerboard_refresh();
+	test_checkerboard_refresh();
 
 	//test_breakout_board();
 
@@ -208,27 +208,28 @@ void test_checkerboard_refresh() {
 	int16_t width = epd.width();
 	int16_t height = epd.height();
 
-	for (int16_t w = 0; w < width; w++) {
-		for (int16_t h = 0; h < height; h++) {
-			epd.drawPixel(w, h, ((w ^ h) & 4) ? 1 : 0);
-		}
-	}
+  // Draw smaller and smaller checkerboards
+  uint8_t mask = 0x04;
+  while (mask >= 0x04) {
 
-	epd.update(k_update_INTERNAL_blink_like_crazy);
+  	for (int16_t w = 0; w < width; w++) {
+  		for (int16_t h = 0; h < height; h++) {
+  			epd.drawPixel(w, h, ((w ^ h) & mask) ? 1 : 0);
+  		}
+  	}
 
-	/*
-	for (int16_t r = (width + height); r >= 2; r -= 3) {
-		epd.fillCircle(width / 2, height / 2, r, random(3));
-	}
-	*/
+    epd.waitUntilNotBusy();
+  	epd.update(k_update_INTERNAL_blink_like_crazy);
 
-	for (int16_t h = 0; h < height; h++) {
-		//epd.drawFastHLine(0, h, width, random(3));  // color
-		epd.drawFastHLine(0, h, width, random(2));  // monochrome
-	}
+    mask >>= 1;
+  }
+
+  draw_color_boxes_art();
 
 	//epd.update(k_update_no_blink);
-	epd.update(k_update_quick_refresh);
+  epd.waitUntilNotBusy();
+	epd.update(k_update_INTERNAL_then_show_coherent_image);
+  epd.waitUntilNotBusy();
 
 	delay(DELAY_BETWEEN_IMAGES_MS);
 }
@@ -244,31 +245,34 @@ void test_circles() {
 	delay(DELAY_BETWEEN_IMAGES_MS);
 }
 
+void draw_color_boxes_art() {
+  int16_t width = epd.width();
+  int16_t height = epd.height();
+
+  epd.setRotation(2);
+  epd.clearBuffer();
+
+  // Draw random little boxes
+  int16_t boxSize = random(8, 14);
+
+  for (int16_t x = 0; x < width; x += boxSize) {
+    for (int16_t y = 0; y < height; y += boxSize) {
+      epd.fillRect(x, y, boxSize, boxSize, random(0, 3));
+    }
+  }
+
+  // Draw a row of big boxes
+  int16_t bigSize = (width + 2) / 3;
+  int16_t atY = random(height - bigSize);
+  uint16_t color = 0;
+  for (int16_t x = 0; x < width; x += bigSize) {
+    epd.fillRect(x, atY, bigSize, bigSize, color);
+    color++;
+  }
+}
+
 void test_box_refresh() {
-	int16_t width = epd.width();
-	int16_t height = epd.height();
-
-	epd.setRotation(2);
-	epd.clearBuffer();
-
-	// Draw random little boxes
-	int16_t boxSize = random(8, 14);
-
-	for (int16_t x = 0; x < width; x += boxSize) {
-		for (int16_t y = 0; y < height; y += boxSize) {
-			epd.fillRect(x, y, boxSize, boxSize, random(0, 3));
-		}
-	}
-
-	// Draw a row of big boxes
-	int16_t bigSize = (width + 2) / 3;
-	int16_t atY = random(height - bigSize);
-	uint16_t color = 0;
-	for (int16_t x = 0; x < width; x += bigSize) {
-		epd.fillRect(x, atY, bigSize, bigSize, color);
-		color++;
-	}
-
+  draw_color_boxes_art();
 	epd.update(k_update_builtin_refresh);
 	epd.waitUntilNotBusy();
 	delay(DELAY_BETWEEN_IMAGES_MS);

@@ -56,6 +56,7 @@ typedef enum epd_update_t {
 	// INTERNAL (Don't use!)
 	k_update_INTERNAL_image_layer,	// grayscale image layers
   k_update_INTERNAL_blink_like_crazy, // testing a new way to clear for color
+  k_update_INTERNAL_then_show_coherent_image,  // after blink like crazy
 
 } epd_update_t;
 

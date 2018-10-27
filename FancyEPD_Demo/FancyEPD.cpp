@@ -1096,15 +1096,18 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 
 				case k_update_INTERNAL_blink_like_crazy:
 				{
-					data[0] = 0b10010000;
-					data[1] = 10; // TIMING
+					const uint8_t BLINK_CRAZY_TIMING = 12;
+					const uint8_t BLINK_CRAZY_REPS = 4;
+
+					data[0] = 0b10010000;  // white, black
+					data[1] = BLINK_CRAZY_TIMING;
 					data[2] = data[1];
-					data[5] = 5; // REPEATS
+					data[5] = BLINK_CRAZY_REPS;
 
 					_sendData(0x21, data, lut_size);  // LUTWW
 					_sendData(0x23, data, lut_size);  // LUTW, all white
 
-					data[0] = 0b01100000;
+					data[0] = 0b01100000;  // black, white
 					_sendData(0x24, data, lut_size);  // LUTB (black)
 
 					data[0] = 0b0;
@@ -1112,6 +1115,82 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 					data[2] = 0;
 					data[5] = 0;
 					_sendData(0x22, data, lut_size);  // LUTR (red/color)
+				}
+				break;
+
+				case k_update_INTERNAL_then_show_coherent_image:
+				{
+					// Phase 1
+					const uint8_t BW_FLASH_TIME = 12;
+					const uint8_t BW_FLASH_REPS_BLACK = 3;
+          const uint8_t BW_FLASH_REPS_RED = 3;
+          //const uint8_t BW_FLASH_REPS_WHITE = 1;
+					const uint8_t BURN_TIME = 16;
+					const uint8_t WR_WHITE_TIME = 2; // Phase 3: coarse red
+					const uint8_t WR_RED_TIME = 15;
+					const uint8_t WR_REPS = 4;
+					const uint8_t WR2_WHITE_TIME = 2; // Phase 4: detailed vivid red
+					const uint8_t WR2_RED_TIME = 60;
+					const uint8_t WR2_REPS = 1;
+
+					// BLACK AND RED
+					// Phase 1: BW flashing
+					data[0] = 0b01100000; // black, white
+					data[1] = BW_FLASH_TIME;
+					data[2] = BW_FLASH_TIME;
+					data[5] = BW_FLASH_REPS_BLACK;
+
+					// Phase 2: Big burn-in of solid color
+					data[6] = 0b01000000;  // black
+					data[7] = BURN_TIME;
+					data[11] = 1;
+
+					// Black is ready, so send it.
+					_sendData(0x24, data, lut_size);  // LUTB (black)
+
+					// For red: Phase 1 is inactive (don't blink with black)
+					data[0] = 0;
+
+					// Phase 2: Blink
+					data[6] = 0b10010000; // white, black
+					data[7] = BW_FLASH_TIME;
+					data[8] = BW_FLASH_TIME;
+					data[11] = BW_FLASH_REPS_RED;
+
+					// Phase 3: white/red
+					data[12] = 0b10110000;  // white, red
+					data[13] = WR_WHITE_TIME;
+					data[14] = WR_RED_TIME;
+					data[17] = WR_REPS;
+
+					data[18] = data[12];  // white, red
+					data[19] = WR2_WHITE_TIME;
+					data[20] = WR2_RED_TIME;
+					data[23] = WR2_REPS;
+
+					// Red is ready
+					_sendData(0x22, data, lut_size);  // LUTR (red/color)
+
+					// White and WW are different:
+          /*
+					data[0] = 0b10010000;  // Phase 1: Blink 1 time: white, black
+          data[5] = BW_FLASH_REPS_WHITE;
+          */
+          data[0] = 0;  // no action
+
+					// Phase 2: burn-in white, or no action for WW
+					data[6] = 0b10000000; // white
+					data[7] = BURN_TIME;
+					data[8] = 0;
+					data[11] = 1;
+
+          data[12] = 0; // no action, phase 2
+          data[18] = 0; // no action, phase 4
+
+					_sendData(0x23, data, lut_size);  // LUTW, all white
+
+					data[6] = 0;  // no action for LUTWW
+					_sendData(0x21, data, lut_size);  // LUTWW
 				}
 				break;
 
