@@ -1194,6 +1194,64 @@ void FancyEPD::_sendWaveforms(epd_update_t update_type, uint8_t time_normal, uin
 				}
 				break;
 
+				case k_update_INTERNAL_fast_color_redraw:
+				{
+					// Phase 1: Set W to white
+					// Phase 2: B & R: Set to black
+					// Phase 3: R -> red
+					const uint8_t W_BLACK_TIME = 20;
+					const uint8_t W_WHITE_TIME = 10;
+					const uint8_t WB_WHITE_TIME = 18;
+					const uint8_t WB_BLACK_TIME = 7;
+					const uint8_t WB_BLACK_TIME_FOR_RED = 15;
+					const uint8_t WB_WHITE_TIME_FOR_RED = 10;
+					const uint8_t WB_REPS = 3;
+					const uint8_t WB_REPS_FOR_RED = 3;
+					const uint8_t WR_WHITE_TIME = 10;
+					const uint8_t WR_BLACK_TIME = 40;
+					const uint8_t WR_WHITE_TIME_FOR_RED = 7;
+					const uint8_t WR_RED_TIME = 120;
+					const uint8_t WR_RED_REPS = 1;
+
+					// WW: No changes are needed. Send waveform now.
+					_sendData(0x21, data, lut_size);  // LUTWW
+
+					// W
+					data[0] = 0b01100000;	// black, white
+					data[1] = W_BLACK_TIME;
+					data[2] = W_WHITE_TIME;
+					data[5] = 1;
+
+					// W phase 2: white pulses
+					data[6] = 0b10000000;	// white
+					data[7] = WB_WHITE_TIME;
+					data[8] = WB_BLACK_TIME;
+					data[11] = WB_REPS;
+
+					_sendData(0x23, data, lut_size);  // LUTW, all white
+
+					// Phase 2: WB has no action in phase 1
+					data[0] = 0;
+					data[6] = 0b10010000;	// white, black
+					data[12] = 0b10010000;	// white, black
+					data[13] = WR_WHITE_TIME;
+					data[14] = WR_BLACK_TIME;
+					data[17] = 1;
+					_sendData(0x24, data, lut_size);  // LUTB (black)
+
+					// Red: Fix WB timing, and add WR phase
+					data[6] = 0b01100000;	// black, then white? hmm. Why so effective?
+					data[7] = WB_BLACK_TIME_FOR_RED;
+					data[8] = WB_WHITE_TIME_FOR_RED;
+					data[11] = WB_REPS_FOR_RED;
+					data[12] = 0b10110000;	// white, red
+					data[13] = WR_WHITE_TIME_FOR_RED;
+					data[14] = WR_RED_TIME;
+					data[17] = WR_RED_REPS;
+					_sendData(0x22, data, lut_size);  // LUTR (red/color)
+				}
+				break;
+
 				default: break;
 			}
 
