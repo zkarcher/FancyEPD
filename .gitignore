@@ -31,6 +31,5 @@
 *.out
 *.app
 
-images_raw/*
 docs/*
 boards/*
