@@ -130,10 +130,10 @@ Color displays (black+red, black+yellow) work reliably with the built-in refresh
 ##### Crystalfontz
 * [CFAP152152A0-0154 — 1.54" \[152 × 152\] black+red](https://www.crystalfontz.com/product/cfap152152a00154-epaper-square-eink-display)
 * [CFAP152152B0-0154 — 1.54" \[152 × 152\] black+yellow](https://www.crystalfontz.com/product/cfap152152b00154-3-color-epaper-module)
-* [CFAP122250A0-0213 — 2.13" \[112 × 208\]](https://www.crystalfontz.com/product/cfap122250a00213-epaper-display-122x250-eink)
 * [CFAP104212D0-0213 — 2.13" \[104 × 212\] flexible](https://www.crystalfontz.com/product/cfap104212d00213-flexible-epaper-display)
+* [CFAP122250A0-0213 — 2.13" \[112 × 208\]](https://www.crystalfontz.com/product/cfap122250a00213-epaper-display-122x250-eink)
 * [CFAP128296C0-0290 — 2.9" \[128 × 296\]](https://www.crystalfontz.com/product/cfap128296c00290-128x296-epaper-display-eink)
-* [CFAP128296C0-0290 — 2.9" \[128 × 296\] black+red](https://www.crystalfontz.com/product/cfap128296c00290-128x296-epaper-display-eink)
+* [CFAP128296D0-0290 — 2.9" \[128 × 296\] black+red](https://www.crystalfontz.com/product/cfap128296d00290-128x296-epaper-display)
 
 ##### Pervasive Displays
 * [E2215CS062 — 2.15" \[122 x 250\]](http://www.digikey.com/product-detail/en/pervasive-displays/E2215CS062/E2215CS062-ND/5975949)
