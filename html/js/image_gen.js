@@ -5,26 +5,44 @@ $(document).ready(function(){
 	const LUMA_G = 0.7152;
 	const LUMA_B = 0.0722;
 
+	// Color screens
+	const BLACK_AND_RED = "black+red";
+	const BLACK_AND_YELLOW = "black+yellow";
+
 	var img = null;
 	var file_name = null;
 
 	const SCREENS = {
-		"E2215CS062": {dims:[112, 208]},
+		"CFAP152152A00154": {dims: [152, 152], color: BLACK_AND_RED},
+		"CFAP152152B00154": {dims: [152, 152], color: BLACK_AND_YELLOW},
+		"CFAP104212D00213": {dims: [104, 212], special: "flexible"},
+		"CFAP122250A00213": {dims: [122, 250]},
+		"CFAP128296C00290": {dims: [128, 296]},
+		"CFAP128296D00290": {dims: [128, 296], color: BLACK_AND_RED},
+
+		"E2215CS062": {dims: [112, 208]},
 	};
 
 	const PALETTES = {
-		"1bit": {name:"1-bit (black and white)"},
-		"2bit_mono": {name:"2-bit grayscale"},
-		"4bit_mono": {name:"4-bit grayscale"},
+		"1bpp_mono":      {name:"1bpp (black and white)"},
+		"1bpc_2channels": {name:"1bpc (2 color channels)"},
+		"2bpp_mono":      {name:"2bpp grayscale"},
+		"2bpc_2channels": {name:"2bpc (2 color channels)"},
+		"4bpp_mono":      {name:"4bpp grayscale"},
+		"4bpc_2channels": {name:"4bpc (2 color channels)"},
 	};
 
 	_.each(Object.keys(SCREENS), function(key){
-		var dims = SCREENS[key].dims;
+		var params = SCREENS[key];
+
+		var label = key + " [" + params.dims.join(" × ") + "]";
+		if (params.color) label += " " + params.color;
+		if (params.special) label += " " + params.special;
 
 		// Add an <option> to the dropdown
 		$('#screen').append($("<option></option>")
 			.attr("value", key)
-			.text(key + " [" + dims.join(",") + "]"));
+			.text(label));
 	});
 
 	_.each(Object.keys(PALETTES), function(key){
@@ -52,7 +70,6 @@ $(document).ready(function(){
 	}
 
 	function getOrientation() {
-		console.log("it's", $("input[name=orientation]:checked").val());
 		return $("input[name=orientation]:checked").val();
 	}
 
@@ -100,45 +117,139 @@ $(document).ready(function(){
 
 		// Brightness values will be rounded off to nearest
 		// palette color (4 bits == 16 colors, etc.)
+		var bpc = 1;
+		var channelCount = 1;
 		var lum_steps = 255;
-		if (pal === "1bit") lum_steps = 2;
-		if (pal === "2bit_mono") lum_steps = 4;
-		if (pal === "4bit_mono") lum_steps = 16;
+		switch (pal) {
+			case "1bpp_mono":
+			case "1bpc_2channels":
+				bpc = 1; lum_steps = 2; break;
+
+			case "2bpp_mono":
+			case "2bpc_2channels":
+				bpc = 2; lum_steps = 4; break;
+
+			case "4bpp_mono":
+			case "4bpc_2channels":
+				bpc = 4; lum_steps = 16; break;
+		}
+
+		// Color channel?
+		var doColor = false;
+		var hue = null;	// Range: 0 (red) .. 1 (red again)
+		switch (pal) {
+			case "1bpc_2channels":
+			case "2bpc_2channels":
+			case "4bpc_2channels":
+				doColor = true;
+				channelCount = 2;
+
+				hue = 0.0;	// red
+
+				var screen = SCREENS[$('#screen').val()];
+
+				if (screen.color === BLACK_AND_YELLOW) {
+					hue = 1.0 / 6.0;	// yellow
+				}
+
+				break;
+		}
+
+		// Color channel: Prepare RGB for rendering to screen.
+		var hueRGB = hsv2rgb((hue || 0), 1.0, 1.0);
 
 		var imgData = ctx.getImageData(0, 0, w, h);
 		var data = imgData.data;
 
-		// Code values will be stored here
-		var cValues = [];
+		var channelData = [];
+		_.times(channelCount, function(){
+			channelData.push([]);
+		});
 
 		// Each pixel has 4 bytes: RGBA.
 		for (var i = 0; i < data.length; i += 4) {
-			var lum = 0.0;	// Will have range 0..255
-			lum += data[i    ] * LUMA_R;
-			lum += data[i + 1] * LUMA_G;
-			lum += data[i + 2] * LUMA_B;
+			var r = data[i] / 0xff;	// Range 0..1
+			var g = data[i + 1] / 0xff;
+			var b = data[i + 2] / 0xff;
+
+			var lum = 0.0;	// Range 0..1
+			lum += r * LUMA_R;
+			lum += g * LUMA_G;
+			lum += b * LUMA_B;
+
+			// Color channels (if any)
+			var sat = 0.0;
+			if (doColor) {
+				var hsv = rgb2hsv(r, g, b);
+
+				// Pixel saturation amount.
+				// Only activate the color channel if the pixel
+				// is within 1/6 of color wheel.
+				var delta = Math.abs(wrapCloseToTarget(hsv.h - hue, 1.0, 0.0));
+
+				const radius = 1.0 / 12.0;
+				if (delta < radius) {
+					// Shaping function: As an image pixel moves away
+					// from target color (red -> orange), decrease
+					// the saturation.
+					var shape = delta / radius;	// 1..0..1
+					shape = shape * shape;
+					shape = 1.0 - shape;	// 0..1..0
+
+					sat = hsv.s * shape;
+
+					// sat should take precedence over lum.
+					lum += hueRGB.r * sat * LUMA_R;
+					lum += hueRGB.g * sat * LUMA_G;
+					lum += hueRGB.b * sat * LUMA_B;
+				}
+			}
 
 			// Round off mono to the nearest palette color
-			lum = Math.round(lum * ((lum_steps - 1) / 255.0));
-			cValues.push(lum);
+			// Range: 0..lum_steps
+			lum = clamp(lum, 0, 1);
+			lum = Math.round(lum * (lum_steps - 1));
+			sat = clamp(sat, 0, 1);
+			sat = Math.round(sat * (lum_steps - 1));
+
+			// lum and sat are ready
+			channelData[0].push(lum << (8 - bpc));
+			if (channelData[1]) channelData[1].push(sat << (8 - bpc));
 
 			// Screen preview color
-			lum *= (255.0 / (lum_steps - 1));
+			lum *= (0xff / (lum_steps - 1));
+			sat *= (0xff / (lum_steps - 1));
 			data[i] = data[i + 1] = data[i + 2] = lum;
-			data[i + 3] = 255;	// alpha
+			data[i + 3] = 0xff;	// alpha
+
+			if (sat) {
+				data[i    ] -= (1.0 - hueRGB.r) * sat;
+				data[i + 1] -= (1.0 - hueRGB.g) * sat;
+				data[i + 2] -= (1.0 - hueRGB.b) * sat;
+			}
 		}
 
 		// Draw this to <canvas>
 		ctx.putImageData(imgData, 0, 0);
 
 		// Print the C code
-		var format;
-		if (pal === "1bit") format = "1bpp_monochrome_raw";
-		if (pal === "2bit_mono") format = "2bpp_monochrome_raw";
-		if (pal === "4bit_mono") format = "4bpp_monochrome_raw";
+		var format = pal;
 
 		// Encode the image as uint8_t array
-		var encoder = new FancyEncoder(canvas, format);
+		var compression = $("#compression").is(":checked") ? 1 : 0;
+		var encoder = new FancyEncoder(canvas, compression, bpc, channelCount, channelData);
+
+		var rawEncoder;
+		if (compression) {
+			rawEncoder = new FancyEncoder(canvas, false, bpc, channelCount, channelData);
+
+			var comprSize = encoder.byteCount;
+			var rawSize = rawEncoder.byteCount;
+
+			$("#rawBytes").text(rawSize);
+			$("#compressedBytes").text(comprSize);
+			$("#compressedPercent").text("(" + Math.round((comprSize / rawSize) * 100.0) + "% of original)");
+		}
 
 		// Share the code block
 		var code = "static const uint8_t " + file_name + "[] = {\n";
@@ -148,15 +259,26 @@ $(document).ready(function(){
 
 		// Usage example
 		var palette_enum = "k_image_none";
-		if (pal === "1bit") palette_enum = "k_image_1bit";
-		if (pal === "2bit_mono") palette_enum = "k_image_2bit_monochrome";
-		if (pal === "4bit_mono") palette_enum = "k_image_4bit_monochrome";
+		if (pal === "1bpp_mono") palette_enum = "k_image_1bit";
+		if (pal === "2bpp_mono") palette_enum = "k_image_2bit_monochrome";
+		if (pal === "4bpp_mono") palette_enum = "k_image_4bit_monochrome";
 
-		var usage = "epd.updateScreenWithImage( " + file_name + ", " + palette_enum + " );"
+		var usage = "";
+		if (!compression) {
+			usage = "epd.updateWithImage(" + file_name + ", " + palette_enum + ");"
+
+		} else {
+			usage = "epd.updateWithCompressedImage(" + file_name + ");"
+		}
+
 		$("#usage_example").text(usage);
 
 		$("#codeSuccess").show();
+
 		$("#copy_result").text("");
+
+		// Show/hide #compressionInfo
+		$("#stats").toggle(compression ? true : false);
 	}
 
 	function copyCodeToClipboard() {
@@ -182,9 +304,10 @@ $(document).ready(function(){
 		beforeEach: onDropzoneData
 	});
 
-	$("screen").on("change", resizeDropzone);
+	$("#screen").on("change", resizeDropzone);
 	$("input[name=orientation]").on("change", resizeDropzone);
 	$("#palette").on("change", redrawImage);
+	$("#compression").on("change", redrawImage);
 	$("#copy_to_clipboard").on("click", copyCodeToClipboard);
 
 	// Init

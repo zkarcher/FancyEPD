@@ -60,22 +60,6 @@ function wrapCloseToTarget( value, height, target ) {
 	return value + (Math.round(diff/height) * height);
 }
 
-function hex2rgb8( hex ) {
-	return {
-		r:	((hex&0xff0000)>>16),
-		g:	((hex&0x00ff00)>> 8),
-		b:	((hex&0x0000ff)    )
-	};
-}
-
-function hex2rgb_f( hex ) {
-	return {
-		r:	((hex&0xff0000)>>16) * (1.0/0xff),
-		g:	((hex&0x00ff00)>> 8) * (1.0/0xff),
-		b:	((hex&0x0000ff)    ) * (1.0/0xff)
-	};
-}
-
 function getTouchX( event ) {
 	if( event.hasOwnProperty('clientX') ) return event['clientX'];
 	if( event.hasOwnProperty('touches') ) return event['touches'][0]['clientX'];
@@ -87,16 +71,6 @@ function getTouchY( event ) {
 	if( event.hasOwnProperty('touches') ) return event['touches'][0]['clientY'];
 	if( event.hasOwnProperty('originalEvent') ) return event['originalEvent']['touches'][0]['clientY'];
 	console.log("** getTouchY: error", event);
-}
-
-// Fixes problems with dat.GUI, '#123456' is converted to int.
-// Known problems: Does not assert anything about the incoming argument.
-function colorToInt( thing ) {
-	var str = String(thing);
-	if( str.substr(0,1) == '#' ) {
-		return parseInt( '0x' + substr(1) );	// Drop '#', assume the rest is hex
-	}
-	return parseInt(thing);
 }
 
 function rotateVec2( v2, addAngle ){

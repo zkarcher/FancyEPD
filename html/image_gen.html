@@ -1,7 +1,9 @@
 <html>
 
 <head>
-	<link href="https://fonts.googleapis.com/css?family=Asap+Condensed" rel="stylesheet">
+	<meta charset="UTF-8">
+	<meta name="google" content="notranslate">
+	<meta http-equiv="Content-Language" content="en">
 
 	<link rel="stylesheet" href="css/image_gen.css"></link>
 
@@ -10,11 +12,16 @@
 	<script src="js/vendor/underscore-1.8.3.js"></script>
 
 	<script src="js/util/math_util.js"></script>
+	<script src="js/util/color_util.js"></script>
 	<script src="js/BinaryImage.js"></script>
 	<script src="js/Bitstream.js"></script>
-	<!--
 	<script src="js/RLE.js"></script>
 	<script src="js/VLQ.js"></script>
+	<!--
+	// TerrainEncoding was an attempt to achieve better
+	// compression by having each row reference the deltas of
+	// the previous row. It was expensive to run, and data size
+	// was not reduced significantly. :P
 	<script src="js/TerrainEncoding.js"></script>
 	-->
 	<script src="js/FancyEncoder.js"></script>
@@ -38,6 +45,9 @@
 	<h2>Palette select</h2>
 	<select id="palette"></select>
 
+	<h2>Fancy features</h2>
+	<input id="compression" type="checkbox" checked="1"> <label>Lossless image compression! <span class="emoji">&#x1F604;</span></label>
+
 	<h2>Upload image</h2>
 	<div id="dropzone" width="150" height="200">
 		<canvas id="drop_canvas"></canvas>
@@ -53,6 +63,17 @@
 
 		<h2>Usage example</h2>
 		<p id="usage_example"></p>
+
+		<div id="stats">
+
+			<h2>Stats</h2>
+
+			<table id="compressionInfo">
+				<tr><td>Raw bytes:</td><td id="rawBytes"></td></tr>
+				<tr><td>Compressed bytes:</td><td id="compressedBytes"></td><td id="compressedPercent"></td></tr>
+			</table>
+
+		</div>
 
 	</div>
 
