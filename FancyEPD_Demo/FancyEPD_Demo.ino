@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <Adafruit_GFX.h>
 #include "FancyEPD.h"
-#include "FancyEPD_Demo_images.h"
+//#include "FancyEPD_Demo_images.h"
 //#include "compression_test.h"
 //#include "crystal_fontz_test.h"
 
@@ -20,10 +20,10 @@
 //FancyEPD epd(k_epd_CFAP128296D00290, 17, 16, 14, 15);	// software SPI
 
 // Crystalfontz 152x152 color
-//FancyEPD epd(k_epd_CFAP152152B00154, 17, 16, 14, 15);
+FancyEPD epd(k_epd_CFAP152152B00154, 17, 16, 14, 15);
 
 // Crystalfontz 104x212 flexible
-FancyEPD epd(k_epd_CFAP104212D00213, 17, 16, 14, 15);
+//FancyEPD epd(k_epd_CFAP104212D00213, 17, 16, 14, 15);
 
 //FancyEPD epd(k_epd_E2215CS062, 17, 16, 14, 15);	// hardware SPI
 
@@ -99,8 +99,8 @@ void loop() {
 	// vv Hmm, this is drawing red & black circles :P I don't get it?
 	//test_grayscale_on_black_and_red_panel();
 
-	//test_cellular_automata();
-  test_cellular_automata_grayscale();
+	test_cellular_automata_color();
+	//test_cellular_automata_grayscale();
 
 	//test_box_refresh();
 	//test_stripe_refresh();
@@ -210,28 +210,28 @@ void test_checkerboard_refresh() {
 	int16_t width = epd.width();
 	int16_t height = epd.height();
 
-  // Draw smaller and smaller checkerboards
-  uint8_t mask = 0x04;
-  while (mask >= 0x04) {
+	// Draw smaller and smaller checkerboards
+	uint8_t mask = 0x04;
+	while (mask >= 0x04) {
 
-  	for (int16_t w = 0; w < width; w++) {
-  		for (int16_t h = 0; h < height; h++) {
-  			epd.drawPixel(w, h, ((w ^ h) & mask) ? 1 : 0);
-  		}
-  	}
+		for (int16_t w = 0; w < width; w++) {
+			for (int16_t h = 0; h < height; h++) {
+				epd.drawPixel(w, h, ((w ^ h) & mask) ? 1 : 0);
+			}
+		}
 
-    epd.waitUntilNotBusy();
-  	epd.update(k_update_INTERNAL_blink_like_crazy);
+		epd.waitUntilNotBusy();
+		epd.update(k_update_INTERNAL_blink_like_crazy);
 
-    mask >>= 1;
-  }
+		mask >>= 1;
+	}
 
-  draw_color_boxes_art();
+	draw_color_boxes_art();
 
 	//epd.update(k_update_no_blink);
-  epd.waitUntilNotBusy();
+	epd.waitUntilNotBusy();
 	epd.update(k_update_INTERNAL_then_show_coherent_image);
-  epd.waitUntilNotBusy();
+	epd.waitUntilNotBusy();
 
 	delay(DELAY_BETWEEN_IMAGES_MS);
 }
@@ -241,7 +241,7 @@ void test_fast_color_redraw() {
 
 	epd.waitUntilNotBusy();
 	epd.update(k_update_INTERNAL_fast_color_redraw);
-  epd.waitUntilNotBusy();
+	epd.waitUntilNotBusy();
 
 	delay(DELAY_BETWEEN_IMAGES_MS);
 }
@@ -258,33 +258,33 @@ void test_circles() {
 }
 
 void draw_color_boxes_art() {
-  int16_t width = epd.width();
-  int16_t height = epd.height();
+	int16_t width = epd.width();
+	int16_t height = epd.height();
 
-  epd.setRotation(2);
-  epd.clearBuffer();
+	epd.setRotation(2);
+	epd.clearBuffer();
 
-  // Draw random little boxes
-  int16_t boxSize = random(8, 14);
+	// Draw random little boxes
+	int16_t boxSize = random(8, 14);
 
-  for (int16_t x = 0; x < width; x += boxSize) {
-    for (int16_t y = 0; y < height; y += boxSize) {
-      epd.fillRect(x, y, boxSize, boxSize, random(0, 3));
-    }
-  }
+	for (int16_t x = 0; x < width; x += boxSize) {
+		for (int16_t y = 0; y < height; y += boxSize) {
+			epd.fillRect(x, y, boxSize, boxSize, random(0, 3));
+		}
+	}
 
-  // Draw a row of big boxes
-  int16_t bigSize = (width + 2) / 3;
-  int16_t atY = random(height - bigSize);
-  uint16_t color = 0;
-  for (int16_t x = 0; x < width; x += bigSize) {
-    epd.fillRect(x, atY, bigSize, bigSize, color);
-    color++;
-  }
+	// Draw a row of big boxes
+	int16_t bigSize = (width + 2) / 3;
+	int16_t atY = random(height - bigSize);
+	uint16_t color = 0;
+	for (int16_t x = 0; x < width; x += bigSize) {
+		epd.fillRect(x, atY, bigSize, bigSize, color);
+		color++;
+	}
 }
 
 void test_box_refresh() {
-  draw_color_boxes_art();
+	draw_color_boxes_art();
 	epd.update(k_update_builtin_refresh);
 	epd.waitUntilNotBusy();
 	delay(DELAY_BETWEEN_IMAGES_MS);
@@ -355,117 +355,22 @@ void draw_digit(uint8_t d, int16_t sz, int16_t x, int16_t y, uint16_t color) {
 }
 
 void draw_clock_digits(uint8_t sz, int16_t atX, int16_t atY, uint8_t color) {
-  draw_digit(hours / 10,   sz, atX,           atY, color);
-  draw_digit(hours % 10,   sz, atX + sz * 4,  atY, color);
-  draw_digit(10,           sz, atX + sz * 7,  atY, color);
-  draw_digit(minutes / 10, sz, atX + sz * 10,  atY, color);
-  draw_digit(minutes % 10, sz, atX + sz * 14, atY, color);
+	draw_digit(hours / 10,   sz, atX,           atY, color);
+	draw_digit(hours % 10,   sz, atX + sz * 4,  atY, color);
+	draw_digit(10,           sz, atX + sz * 7,  atY, color);
+	draw_digit(minutes / 10, sz, atX + sz * 10,  atY, color);
+	draw_digit(minutes % 10, sz, atX + sz * 14, atY, color);
 }
 
 void advance_the_clock() {
-  minutes++;
-  if (minutes >= 60) {
-    minutes = 0;
-    hours = (hours + 1) % 24;
-  }
+	minutes++;
+	if (minutes >= 60) {
+		minutes = 0;
+		hours = (hours + 1) % 24;
+	}
 }
 
 void test_cellular_automata_grayscale() {
-  Serial.println("Drawing...");
-
-  epd.setRotation(2);
-
-  int16_t w = epd.width();
-  int16_t h = epd.height();
-
-  // 3 color states (white, black, red): Choose 27 rules (3^3)
-  uint8_t rules[27];
-
-  for (uint8_t r = 0; r < 27; r++) {
-    rules[r] = (uint8_t)(random(3));
-  }
-
-  // Pixel data is stored here:
-  uint8_t px[h][w];
-
-  // Total number of pixel each color
-  uint16_t pxTotals[3] = {0, 0, 0};	// white, black, red
-
-  // Fill the first row with random noise
-  for (int16_t x = 0; x < w; x++) {
-    px[0][x] = random(3);
-  }
-
-  // Derive the next rows from the row above.
-  for (int16_t y = 1; y < h; y++) {
-    for (int16_t x = 0; x < w; x++) {
-      uint8_t a0 = px[y - 1][((x - 1) + w) % w];
-      uint8_t a1 = px[y - 1][x];
-      uint8_t a2 = px[y - 1][(x + 1) % w];
-
-      uint8_t rule_index = (a0 * 9) + (a1 * 3) + a2;
-      px[y][x] = rules[rule_index];
-
-      // Count the number of pixels in each color.
-      pxTotals[px[y][x]]++;
-    }
-  }
-
-  uint16_t pxMax = max(pxTotals[0], max(pxTotals[1], pxTotals[2]));
-  uint16_t pxMin = min(pxTotals[0], min(pxTotals[1], pxTotals[2]));
-
-  uint8_t colorMax = 0;
-  uint8_t colorMin = 0;
-  for (uint8_t c = 0; c < 3; c++) {
-    if (pxMax == pxTotals[c]) {
-      colorMax = c;
-    }
-    if (pxMin == pxTotals[c]) {
-      colorMin = c;
-    }
-  }
-
-  // Set the border color to match the most pixels
-  //epd.setBorderColor(colorMax);
-
-  // Clear
-  epd.clearBuffer();
-  epd.waitUntilNotBusy();
-  epd.update(k_update_builtin_refresh);
-
-  // Clock params:
-  uint8_t sz = 5;
-  int16_t atX = random(w - sz * 18) + sz;
-  int16_t atY = h - (6 * sz) - random(sz * 5);
-
-  // Draw as grayscale
-  for (uint8_t b = 0; b < 2; b++) {
-    // LSB first
-    uint8_t mask = (0x1 << b);
-
-    for (int16_t y = 0; y < h; y++) {
-      for (int16_t x = 0; x < w; x++) {
-        epd.drawPixel(x, y, (px[y][x] & mask) ? 0 : 1);
-      }
-    }
-
-    draw_clock_digits(sz, atX, atY, 0);
-
-    epd.setCustomTiming(k_update_INTERNAL_image_layer, 50);
-
-    epd.waitUntilNotBusy();
-    epd.update(k_update_INTERNAL_image_layer);
-    epd.waitUntilNotBusy();
-  }
-
-  advance_the_clock();
-
-  delay(DELAY_BETWEEN_IMAGES_MS);
-
-  Serial.println("  Draw complete.");
-}
-
-void test_cellular_automata() {
 	Serial.println("Drawing...");
 
 	epd.setRotation(2);
@@ -473,15 +378,112 @@ void test_cellular_automata() {
 	int16_t w = epd.width();
 	int16_t h = epd.height();
 
-  // Trying to reset/unburn the colors, here
-  for (uint8_t c = 0; c <= 2; c++) {
-    epd.waitUntilNotBusy();
-    epd.fillRect(0, 0, w, h, c);
-    epd.setBorderColor(c);
-    epd.update(k_update_builtin_refresh);
-    epd.waitUntilNotBusy();
-    delay(2000);
-  }
+	// 3 color states (white, black, red): Choose 27 rules (3^3)
+	uint8_t rules[27];
+
+	for (uint8_t r = 0; r < 27; r++) {
+		rules[r] = (uint8_t)(random(3));
+	}
+
+	// Pixel data is stored here:
+	uint8_t px[h][w];
+
+	// Total number of pixel each color
+	uint16_t pxTotals[3] = {0, 0, 0};	// white, black, red
+
+	// Fill the first row with random noise
+	for (int16_t x = 0; x < w; x++) {
+		px[0][x] = random(3);
+	}
+
+	// Derive the next rows from the row above.
+	for (int16_t y = 1; y < h; y++) {
+		for (int16_t x = 0; x < w; x++) {
+			uint8_t a0 = px[y - 1][((x - 1) + w) % w];
+			uint8_t a1 = px[y - 1][x];
+			uint8_t a2 = px[y - 1][(x + 1) % w];
+
+			uint8_t rule_index = (a0 * 9) + (a1 * 3) + a2;
+			px[y][x] = rules[rule_index];
+
+			// Count the number of pixels in each color.
+			pxTotals[px[y][x]]++;
+		}
+	}
+
+	uint16_t pxMax = max(pxTotals[0], max(pxTotals[1], pxTotals[2]));
+	uint16_t pxMin = min(pxTotals[0], min(pxTotals[1], pxTotals[2]));
+
+	uint8_t colorMax = 0;
+	uint8_t colorMin = 0;
+	for (uint8_t c = 0; c < 3; c++) {
+		if (pxMax == pxTotals[c]) {
+			colorMax = c;
+		}
+		if (pxMin == pxTotals[c]) {
+			colorMin = c;
+		}
+	}
+
+	// Set the border color to match the most pixels
+	//epd.setBorderColor(colorMax);
+
+	// Clear
+	epd.clearBuffer();
+	epd.waitUntilNotBusy();
+	epd.update(k_update_builtin_refresh);
+
+	// Clock params:
+	uint8_t sz = 5;
+	int16_t atX = random(w - sz * 18) + sz;
+	int16_t atY = h - (6 * sz) - random(sz * 5);
+
+	// Draw as grayscale
+	for (uint8_t b = 0; b < 2; b++) {
+		// LSB first
+		uint8_t mask = (0x1 << b);
+
+		for (int16_t y = 0; y < h; y++) {
+			for (int16_t x = 0; x < w; x++) {
+				epd.drawPixel(x, y, (px[y][x] & mask) ? 0 : 1);
+			}
+		}
+
+		draw_clock_digits(sz, atX, atY, 0);
+
+		epd.setCustomTiming(k_update_INTERNAL_image_layer, 50);
+
+		epd.waitUntilNotBusy();
+		epd.update(k_update_INTERNAL_image_layer);
+		epd.waitUntilNotBusy();
+	}
+
+	advance_the_clock();
+
+	delay(DELAY_BETWEEN_IMAGES_MS);
+
+	Serial.println("  Draw complete.");
+}
+
+void test_cellular_automata_color() {
+	Serial.println("Drawing...");
+
+	epd.setRotation(2);
+
+	int16_t w = epd.width();
+	int16_t h = epd.height();
+
+	// Trying to reset/unburn the colors, here
+	/*
+	for (uint8_t c = 0; c <= 2; c++) {
+		epd.waitUntilNotBusy();
+		epd.fillRect(0, 0, w, h, c);
+		epd.setBorderColor(c);
+		epd.update(k_update_builtin_refresh);
+		epd.waitUntilNotBusy();
+		delay(2000);
+	}
+	*/
 
 	// 3 color states (white, black, red): Choose 27 rules (3^3)
 	uint8_t rules[27];
@@ -541,11 +543,11 @@ void test_cellular_automata() {
 	// Set the border color to match the most pixels
 	epd.setBorderColor(colorMax);
 
-  uint8_t sz = 5;
-  int16_t atX = random(w - sz * 18) + sz;
-  int16_t atY = h - (6 * sz) - random(sz * 5);
-  draw_clock_digits(sz, atX, atY, colorMin);
-  advance_the_clock();
+	uint8_t sz = 5;
+	int16_t atX = random(w - sz * 18) + sz;
+	int16_t atY = h - (6 * sz) - random(sz * 5);
+	draw_clock_digits(sz, atX, atY, colorMin);
+	advance_the_clock();
 
 	epd.waitUntilNotBusy();
 	epd.update(k_update_builtin_refresh);
