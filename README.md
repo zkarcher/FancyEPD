@@ -6,17 +6,17 @@ Display fancy graphics on ePaper.
 
 # **A Note From the Developer**
 
-[@zkarcher](https://twitter.com/zkarcher) 2018-11-17: As of today, **I have stopped development of FancyEPD.** I'm proud of everything I've accomplished, especially the impact this project had on people's lives and creative work.
+[@zkarcher](https://twitter.com/zkarcher) 2018-11-17: As of today, **I have stopped development of FancyEPD.** I'm proud of everything I've accomplished, especially the impact this project has had on people's lives and creative work.
 
-FancyEPD was started after I reverse-engineered the commands necessary to change the e-Ink "waveforms" (the voltage patterns that are used to affect pixel colors). This was exciting, because it made grayscale *easy*! By sending the individual bits of an image as layers, and drawing each layer with very short waveforms, it's possible to use e-Ink's ghosting artifacts to gently influence each pixel, nudging it towards black or white ... and produce a range of grayscale colors.
+FancyEPD was started after I reverse-engineered how to change the e-Ink "waveforms" (the voltage patterns that are used to affect pixel colors). This was exciting, because it made grayscale *easy*! By sending the individual bits of an image as layers, and drawing each layer with very short waveforms, it's possible to use e-Ink's ghosting artifacts to gently influence each pixel, nudging it towards black or white ... and produce a range of grayscale colors.
 
-At the time, I didn't realize that creating a "general-purpose" e-Ink library to support dozens of boards (and manufacturers' drivers, and fancy features) would be a long, tedious undertaking. As features are added, FancyEPD requires a huge amount of testing, and I don't have enough spare time for this. Some boards have features that are broken/unfinished.
+At the time, I didn't realize that creating a "general-purpose" e-Ink library to support dozens of boards (and manufacturers' drivers, and fancy features) would be a long, tedious undertaking. As I add features, FancyEPD requires a huge amount of testing, and I don't have enough spare time for this. Some boards have features that are broken/unfinished.
 
-Also, the physical properties of e-Ink are difficult to reconcile. I've tried creating short(er) refreshes on the color displays, and except for a few use cases (big blobs of color, no fine details) I've basically failed. This problem sucked me in for too long (see: [XKCD nerd sniping](https://www.xkcd.com/356/)) and it may be unsolveable.
+Also, the physical properties of e-Ink are difficult to reconcile. I've tried creating short(er) refreshes on color displays, and except for a few use cases (big blobs of color, no fine details) I've basically failed. This problem sucked me in for too long (see: [XKCD nerd sniping](https://www.xkcd.com/356/)) and it may be unsolveable.
 
 I still have some love for e-Ink displays. They're essentially an *analog* display technology, which rewards clever thinking and experimentation. If you're seeking a developer for a paid ePaper project, please contact me!
 
-I feel like the world needs better, more reliable ePaper displays, with faster refresh times and better color accuracy. Meanwhile, you're welcome to salvage whatever's in the FancyEPD repository. Happy coding!
+I feel like the world needs better, more reliable ePaper displays, with faster refresh times and better color accuracy. In the meantime, you're welcome to salvage whatever's in the FancyEPD repository. Happy coding!
 
 -- Zach
 
@@ -139,6 +139,8 @@ Color displays (black+red, black+yellow) work reliably with the built-in refresh
 * [E2215CS062 — 2.15" \[122 x 250\]](http://www.digikey.com/product-detail/en/pervasive-displays/E2215CS062/E2215CS062-ND/5975949)
 
 // TODO: Add a matrix of supported features per screen
+
+![Photo of ePaper display: Flexible Crystalfontz display](https://raw.githubusercontent.com/zkarcher/FancyEPD/master/images/flexible.jpg)
 
 ## Supported Driver Boards
 
